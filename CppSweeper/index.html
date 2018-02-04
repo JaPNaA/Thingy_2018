@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <title>Redirecting...</title>
+</head>
+
+<body>
+    Redirecting...
+    <br> If you don't get redirected,
+    <a id="r" href="https://github.com/JaPNaA/Thingy/tree/master/2018/CppSweeper">click here</a>
+    <script>
+        document.getElementById("r").addEventListener("click", function () {
+            location.replace(this.href);
+        });
+        location.replace(document.getElementById("r").href);
+    </script>
+</body>
+
+</html>

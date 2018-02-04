@@ -1,0 +1,39 @@
+@media screen and (min-width: 1440px) {
+    iframe {
+        width: 35% !important;
+    }
+}
+
+@media screen and (min-height: 520px) {
+    body {
+        margin-top: 10%;
+    }
+    iframe {
+        height: 65vh;
+    }
+}
+
+body {
+    text-align: center;
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
+h1 {
+    margin: 0;
+}
+
+.left {
+    text-align: left;
+}
+
+iframe {
+    display: inline-block;
+    min-width: 512px;
+    width: 50%;
+    height: 35%;
+    border: 0;
+    margin: 8px 2vw;
+}

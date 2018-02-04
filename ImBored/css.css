@@ -1,0 +1,15 @@
+input, textarea {
+    width: 100%;
+}
+
+textarea {
+    height: 25vw;
+}
+
+div[rand] input {
+    width: 256px;
+}
+
+div {
+    margin-bottom: 8px;
+}

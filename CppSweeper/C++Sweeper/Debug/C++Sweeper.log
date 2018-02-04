@@ -1,0 +1,6 @@
+﻿  C++Sweeper.cpp
+c:\users\leone\documents\coding\c++\c++sweeper\c++sweeper\c++sweeper.cpp(178): warning C4267: 'initializing': conversion from 'size_t' to 'unsigned short', possible loss of data
+c:\users\leone\documents\coding\c++\c++sweeper\c++sweeper\c++sweeper.cpp(346): warning C4267: 'initializing': conversion from 'size_t' to 'short', possible loss of data
+c:\users\leone\documents\coding\c++\c++sweeper\c++sweeper\c++sweeper.cpp(347): warning C4267: 'initializing': conversion from 'size_t' to 'short', possible loss of data
+c:\users\leone\documents\coding\c++\c++sweeper\c++sweeper\c++sweeper.cpp(372): warning C4267: 'initializing': conversion from 'size_t' to 'short', possible loss of data
+  C++Sweeper.vcxproj -> C:\Users\leone\Documents\Coding\C++\C++Sweeper\Debug\C++Sweeper.exe

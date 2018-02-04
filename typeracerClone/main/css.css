@@ -1,0 +1,126 @@
+.typeracerclone {
+    position: relative;
+    font-size: 1.5em;
+    font-family: monospace;
+}
+
+.typeracerclone .main {
+    white-space: pre-wrap;
+}
+
+.typeracerclone .main div {
+    display: inline;
+}
+
+.typeracerclone .main .cursor {
+    position: absolute;
+    background-color: #00000010;
+    border-left: 2px solid #000;
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    transition: 0.1s ease-out;
+}
+
+.typeracerclone .main .cursor.hax {
+    background-color: rgba(0, 0, 64, 0.063);
+    border-left: 2px solid rgb(0, 0, 255);
+}
+
+.typeracerclone .main .cursor.blink {
+    border-left-color: #00000000;
+}
+
+.typeracerclone .main div .incorrect, .typeracerclone .main .extra div{
+    background-color: #F00;
+    border-radius: 4px;
+    color: #FFF;
+}
+
+.typeracerclone .main div>div {
+    width: 11px;
+    height: 23px;
+    display: inline-block;
+}
+
+.typeracerclone .main div .last {
+    border-right: 2px solid #000;
+}
+
+.typeracerclone .main .untyped {
+    color: #999;
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
+.typeracerclone .main.done .untyped {
+    color: rgb(255, 108, 108);
+}
+
+.typeracerclone .data {
+    display: grid;
+    grid-template-columns: 2fr 2fr 3fr;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 24px;
+    grid-gap: 8px;
+}
+
+.typeracerclone .data>div {
+    width: 100%;
+    height: 100%;
+    padding: 0 4px;
+}
+
+.typeracerclone .data .time::after {
+    content: "s";
+    opacity: 0.8;
+}
+
+.typeracerclone .data .words::after {
+    content: " chars";
+    opacity: 0.8;
+}
+
+@media screen and (min-width: 880px) {
+    .typeracerclone .data .wpm::after {
+        content: " words per minute" !important;
+        opacity: 0.8;
+    }
+}
+@media screen and (min-width: 554px) {
+    .typeracerclone .data .time::after {
+        content: " seconds";
+        opacity: 0.8;
+    }
+
+    .typeracerclone .data .words::after {
+        content: " characters";
+        opacity: 0.8;
+    }
+}
+
+.typeracerclone .data .wpm::after {
+    content: " wpm";
+    opacity: 0.8;
+}
+
+.typeracerclone .inp {
+    position: fixed;
+    top: -32px;
+    left: -32px;
+    width: 1px;
+    height: 1px;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    color: rgba(0, 0, 0, 0);
+    background-color: rgba(0, 0, 0, 0);
+    background: none;
+    opacity: 0;
+}
