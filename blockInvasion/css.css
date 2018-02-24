@@ -1,0 +1,13 @@
+canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+canvas.w {
+    width: 100%;
+}
+
+canvas.h {
+    height: 100%;
+}
