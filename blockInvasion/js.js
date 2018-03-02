@@ -32,18 +32,34 @@ class Data {
 
         this.timeElapsed = 0;
         this._gridOffset = 0;
-        this.difficulty = 1;
+        this.difficulty = 0;
         this.speed = 1;
         this.bulletPow = 1;
 
         this.cooldown = {
             block: {
-                time: 500,
+                time: 1000,
                 now: 0,
                 e: 0
             },
             bullet: {
-                time: 500,
+                time: 1000,
+                min: 32,
+                now: 0,
+                e: 0
+            },
+            diffUp: {
+                time: 10000,
+                now: 0,
+                e: 0
+            },
+            spdUp: {
+                time: 1000,
+                now: 0,
+                e: 0
+            },
+            blockUp: {
+                time: 5000,
                 now: 0,
                 e: 0
             }
@@ -75,6 +91,9 @@ class Data {
             o.now -= tt;
 
             while (o.now < 0) {
+                if (o.min && o.time < o.min) {
+                    o.time = o.min;
+                }
                 o.now += o.time;
                 o.e++;
             }
@@ -84,7 +103,11 @@ class Data {
     tick(tt) {
         this.timeElapsed += tt;
         this.gridOffset += Block.vy * tt * this.speed;
-        this.warmup(tt);
+        this.warmup(tt * this.speed);
+
+        if (this.bulletPow > 10) {
+            this.bulletPow = 10;
+        }
     }
 }
 
@@ -147,13 +170,24 @@ class Block extends Thing {
         this.vy = Block.vy;
 
         this.value = 1 * this.parent.data.difficulty;
+        this.lvalue = this.value;
+        this.special = false;
+        this.reallySpecial = false;
 
-        this.color = c;
+        this.playerDestroyed = false;
+
+        let tx = Math.floor(this.x),
+            ty = Math.floor(this.y);
 
         for (let i of this.parent.obs[this.layer]) {
-            if (i !== this && this.x == i.x && this.y == i.y) {
+            if (i !== this && tx == Math.floor(i.x) && ty == Math.floor(i.y)) {
                 this.rem = true;
                 i.value += this.value;
+                if (i.special) {
+                    i.reallySpecial = true;
+                } else {
+                    i.special = true;
+                }
             }
         }
     }
@@ -165,6 +199,13 @@ class Block extends Thing {
     }
     static get lanes() {
         return 7;
+    }
+
+    get color() {
+        return `hsl(${(this.lvalue - 1) * 9.101441186718159}, 100%, 50%)`;
+    }
+    get cColor() {
+        return `hsl(${(this.lvalue - 1) * 9.101441186718159 + 180}, 100%, 50%)`;
     }
 
     get speed() {
@@ -181,30 +222,67 @@ class Block extends Thing {
         if (this.value <= 0) {
             this.rem = true;
         }
+
+        let diff = (this.value - this.lvalue);
+        if (diff <= 16) {
+            this.lvalue += diff / tt;
+        } else {
+            this.lvalue = this.value - 16;
+        }
     }
     draw() {
         if (this.value <= 0) return;
-        var X = this.parent.X;
+        var X = this.parent.X,
+            cdif = this.value - this.lvalue,
+            tw;
+        X.save();
         X.fillStyle = this.color;
-        X.fillRect(
-            this.x + this.margin,
-            this.y + this.margin,
+        X.translate(this.x + this.width / 2, this.y + this.height / 2);
+        if (cdif < 16) {
+            let s = (16 - cdif) / 16;
+            X.scale(s, s);
+        } else {
+            X.globalAlpha = 0.1;
+        }
+        X.fillRect(-this.width / 2 + this.margin, -this.height / 2 + this.margin,
             this.width - this.margin * 2,
             this.height - this.margin * 2
         );
-        X.fillStyle = "#FFFFFF";
-        X.font = "72px Arial";
-        X.fillText(this.value, this.x, this.y + 72);
+
+        X.fillStyle = this.cColor;
+        X.font = "64px Arial";
+
+        tw = X.measureText(this.value.toString()).width;
+
+        X.fillText(this.value, -tw / 2, 16);
+        X.restore();
+    }
+    remove() {
+        if (this.rem) {
+            if (this.playerDestroyed && this.special) {
+                if (this.reallySpecial) {
+                    this.parent.data.bulletPow += 1;
+                } else {
+                    this.parent.data.cooldown.bullet.time *= 0.95;
+                }
+            }
+
+            let o = this.parent.obs[this.layer];
+            o.splice(o.indexOf(this), 1);
+        }
     }
 }
 
 class Bullet extends Thing {
-    constructor(p, x, y, a) {
+    constructor(p, x, y, a, s) {
         super(p, 1);
 
         this.ang = a;
         this.x = x;
         this.y = y;
+
+        this.isSub = !!s;
+        this.ttl = 5000;
 
         this.radius = 8;
 
@@ -255,16 +333,6 @@ class Bullet extends Thing {
 
         for (let i of this.parent.obs[this.layer]) {
             if (!(i instanceof Block)) continue;
-            // if(
-            //     i.x < x + d && 
-            //     i.x + i.width > x && 
-            //     i.y < y + d && 
-            //     i.y + i.height > y
-            // ) {
-            //     this.rem = true; 
-            //     i.value--;
-            //     console.log("R");
-            // }
             let dx = (x + r) - (i.x + i.width / 2),
                 dy = (y + r) - (i.y + i.height / 2),
                 w = r + i.width / 2,
@@ -295,7 +363,18 @@ class Bullet extends Thing {
                     }
                 }
                 this.blocksHit++;
+
+                if (this.blocksHit > 5) {
+                    this.rem = true;
+                    new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * 0.25, true);
+                    new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * 0.5, true);
+                    new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * 0.75, true);
+                    new Bullet(this.parent, this.x, this.y, this.ang, true);
+                    console.log("mbh");
+                }
+
                 i.value -= this.parent.data.bulletPow;
+                if (i.value <= 0) i.playerDestroyed = true;
             }
         }
     }
@@ -305,8 +384,22 @@ class Bullet extends Thing {
         this.y += this.vy * tt;
 
         this.boundaries();
-
         this.collide();
+
+        if (this.isSub) {
+            this.ttl -= tt;
+            if (this.ttl < 0) {
+                this.rem = true;
+            }
+        }
+    }
+    remove() {
+        if (this.rem) {
+            let o = this.parent.obs[this.layer];
+            o.splice(o.indexOf(this), 1);
+            if (!this.isSub)
+                this.parent.player.bullets--;
+        }
     }
 }
 
@@ -314,15 +407,15 @@ class Player extends Thing {
     constructor(p) {
         super(p, 2);
 
-        this.width = 64;
-        this.height = 64;
+        this.width = 72;
+        this.height = 72;
         this.x = (this.parent.width - this.width) / 2;
         this.y = (this.parent.height - this.height) / 4 * 3;
         this.speed = 0.005;
         this.color = "#FF0000";
 
         this.baseHeight = 256;
-        this.baseReach = this.parent.width / 2;
+        this.baseReach = this.parent.width / 3;
         this.baseColor = ["#660000", "#666600", "#006600"];
 
         this.reachOrigin = {
@@ -332,7 +425,8 @@ class Player extends Thing {
         this.reachWidth = 16;
         this.reachColor = "#FFFFFF";
 
-        this.maxBullets = null;
+        this.maxBullets = 5;
+        this.bullets = 0;
         this.lives = 3;
     }
     draw() {
@@ -385,10 +479,12 @@ class Player extends Thing {
         var ofx = (this.x + this.width / 2) - this.reachOrigin.x,
             ofy = (this.y + this.height / 2) - this.reachOrigin.y;
         new Bullet(this.parent, this.x + this.width / 2, this.y + this.height / 2, Math.atan2(ofy, ofx));
+        this.bullets++;
     }
 
     tick(tt) {
         if (this.lives <= 0) return;
+
         var k = this.parent.key,
             ax = 0,
             ay = 0,
@@ -419,6 +515,7 @@ class Player extends Thing {
 
         this.clamps();
         while (this.parent.data.cooldown.bullet.e > 0) {
+            if (this.bullets >= this.maxBullets) break;
             this.spawnBullet();
             this.parent.data.cooldown.bullet.e--;
         }
@@ -528,9 +625,9 @@ class StartScreen extends Screen {
         this.then = now;
 
         X.save();
-        if(this.fading) {
+        if (this.fading) {
             this.fadeOut -= tt;
-            if(this.fadeOut < 0) {
+            if (this.fadeOut < 0) {
                 this.fading = false;
                 return;
             }
@@ -543,7 +640,7 @@ class StartScreen extends Screen {
 
         X.fillStyle = "#FFFFFF";
         X.font = "36px Arial";
-        X.fillText("Click to start...", 8, 720);
+        X.fillText("[insert title picture here]", 8, 720);
 
         X.restore();
 
@@ -566,7 +663,12 @@ class GameScreen extends Screen {
             [],
             []
         ];
+
         this.key = [];
+        this.mouse = {
+            x: 0,
+            y: 0
+        };
 
         this._loadedDependencies = 0;
         this.requiredDependencies = 0;
@@ -699,6 +801,18 @@ class GameScreen extends Screen {
             new Block(this, randInt(Block.lanes), this.data.gridOffset, "#FF0000");
             this.data.cooldown.block.e--;
         }
+        while (this.data.cooldown.blockUp.e > 0) {
+            this.data.cooldown.block.time *= 0.975;
+            this.data.cooldown.blockUp.e--;
+        }
+        if (this.data.cooldown.diffUp.e > 0) {
+            this.data.difficulty += this.data.cooldown.diffUp.e;
+            this.data.cooldown.diffUp.e = 0;
+        }
+        if (this.data.cooldown.spdUp.e > 0) {
+            this.data.speed += this.data.cooldown.spdUp.e * 0.01;
+            this.data.cooldown.spdUp.e = 0;
+        }
     }
 
     draw() {
@@ -725,6 +839,9 @@ class GameScreen extends Screen {
     mousemove(e) {
         if (!this.started) return;
         e.preventDefault();
+
+        this.mouse.x = e.layerX;
+        this.mouse.y = e.layerY;
 
         this.event("mousemove", e);
     }
