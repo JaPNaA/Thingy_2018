@@ -39,6 +39,7 @@ class Data {
         this.cooldown = {
             block: {
                 time: 1000,
+                min: 250,
                 now: 0,
                 e: 0
             },
@@ -74,7 +75,7 @@ class Data {
     set blockSpeed(e) {}
 
     get bulletSpeed() {
-        return this._bulletSpeed;
+        return this._bulletSpeed * this.speed;
     }
     set bulletSpeed(e) {}
 
@@ -171,10 +172,14 @@ class Block extends Thing {
 
         this.value = 1 * this.parent.data.difficulty;
         this.lvalue = this.value;
+
         this.special = false;
         this.reallySpecial = false;
 
         this.playerDestroyed = false;
+        this.destroyed = false;
+        this.destroyedAniTime = 350;
+        this.destroyedAniStep = this.destroyedAniTime;
 
         let tx = Math.floor(this.x),
             ty = Math.floor(this.y);
@@ -214,13 +219,26 @@ class Block extends Thing {
 
     tick(tt) {
         this.y += this.vy * this.speed * tt;
-        if (this.y + this.height - this.margin > this.parent.height - this.parent.player.baseHeight) {
-            this.rem = true;
+        if (this.destroyed) {
+            this.destroyedAniStep -= tt;
+
+            if (this.destroyedAniStep < 0) {
+                this.rem = true;
+            }
+            return;
+        }
+
+        if (this.parent.player.lives > 0 && this.y + this.height - this.margin > this.parent.height - this.parent.player.baseHeight) {
+            this.destroyed = true;
             this.parent.player.lives--;
         }
 
-        if (this.value <= 0) {
+        if (this.y > this.parent.height) {
             this.rem = true;
+        }
+
+        if (this.value <= 0) { // remove if 0 or outside screen
+            this.destroyed = true;
         }
 
         let diff = (this.value - this.lvalue);
@@ -231,19 +249,39 @@ class Block extends Thing {
         }
     }
     draw() {
-        if (this.value <= 0) return;
+        // if (this.value <= 0) return;
         var X = this.parent.X,
-            cdif = this.value - this.lvalue,
-            tw;
+            cdif = this.lvalue - this.value,
+            tw,
+            tv = Math.ceil(this.value);
+
+        if (tv < 1) {
+            tv = 1;
+        }
+
         X.save();
         X.fillStyle = this.color;
         X.translate(this.x + this.width / 2, this.y + this.height / 2);
+
         if (cdif < 16) {
-            let s = (16 - cdif) / 16;
+            let s = 1 - cdif / 16;
+
+            if(s > 1.25) {
+                s = 1.25;
+            }
+
             X.scale(s, s);
         } else {
             X.globalAlpha = 0.1;
         }
+
+        if (this.destroyed) {
+            let s = this.destroyedAniStep / this.destroyedAniTime;
+            s *= s * s;
+            X.scale(s, s);
+            X.globalAlpha = s;
+        }
+
         X.fillRect(-this.width / 2 + this.margin, -this.height / 2 + this.margin,
             this.width - this.margin * 2,
             this.height - this.margin * 2
@@ -252,16 +290,16 @@ class Block extends Thing {
         X.fillStyle = this.cColor;
         X.font = "64px Arial";
 
-        tw = X.measureText(this.value.toString()).width;
+        tw = X.measureText(tv.toString()).width;
 
-        X.fillText(this.value, -tw / 2, 16);
+        X.fillText(tv, -tw / 2, 16);
         X.restore();
     }
     remove() {
         if (this.rem) {
             if (this.playerDestroyed && this.special) {
                 if (this.reallySpecial) {
-                    this.parent.data.bulletPow += 1;
+                    this.parent.data.bulletPow += 0.2;
                 } else {
                     this.parent.data.cooldown.bullet.time *= 0.95;
                 }
@@ -318,11 +356,13 @@ class Bullet extends Thing {
             this.vy = Math.abs(this.vy);
             this.y = this.radius * 2 - this.y;
         } else if (this.y > this.parent.height - this.radius) {
-            this.vy = -Math.abs(this.vy);
-            this.y = (this.parent.height - this.radius) * 2 - this.y;
+            this.rem = true;
         }
 
-        if (this.y > this.parent.height - this.parent.player.baseHeight + this.radius * 2) {
+        if (
+            this.parent.player.lives > 0 &&
+            this.y > this.parent.height - this.parent.player.baseHeight + this.radius * 2
+        ) {
             this.rem = true;
         }
     }
@@ -332,7 +372,7 @@ class Bullet extends Thing {
             r = this.radius;
 
         for (let i of this.parent.obs[this.layer]) {
-            if (!(i instanceof Block)) continue;
+            if (!(i instanceof Block) || i.destroyed) continue;
             let dx = (x + r) - (i.x + i.width / 2),
                 dy = (y + r) - (i.y + i.height / 2),
                 w = r + i.width / 2,
@@ -370,7 +410,6 @@ class Bullet extends Thing {
                     new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * 0.5, true);
                     new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * 0.75, true);
                     new Bullet(this.parent, this.x, this.y, this.ang, true);
-                    console.log("mbh");
                 }
 
                 i.value -= this.parent.data.bulletPow;
