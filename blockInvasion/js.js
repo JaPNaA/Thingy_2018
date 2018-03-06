@@ -8,6 +8,20 @@ function randInt(e) {
     return Math.floor(Math.random() * e);
 }
 
+function loadImage(e, f) {
+    var i = new Image();
+    i.src = e;
+
+    if (f) {
+        f.requiredDependencies++;
+        i.addEventListener("load", function () {
+            f.loadedDependencies++;
+        });
+    }
+
+    return i;
+}
+
 class Ob {
     constructor(g, l) {
         this.parent = g;
@@ -56,11 +70,13 @@ class Data {
             },
             spdUp: {
                 time: 1000,
+                drpd: 1,
                 now: 0,
                 e: 0
             },
             blockUp: {
                 time: 5000,
+                drpd: 1,
                 now: 0,
                 e: 0
             }
@@ -87,8 +103,13 @@ class Data {
     }
 
     warmup(tt) {
+        let pd = this.parent.player.lives <= 0;
+
         for (let i in this.cooldown) {
             let o = this.cooldown[i];
+
+            if (o.drpd && pd) continue;
+
             o.now -= tt;
 
             while (o.now < 0) {
@@ -241,11 +262,13 @@ class Block extends Thing {
             this.destroyed = true;
         }
 
-        let diff = (this.value - this.lvalue);
-        if (diff <= 16) {
-            this.lvalue += diff / tt;
-        } else {
-            this.lvalue = this.value - 16;
+        if (this.value > 0) {
+            let diff = (this.value - this.lvalue);
+            if (diff <= 16) {
+                this.lvalue += diff / tt;
+            } else {
+                this.lvalue = this.value - 16;
+            }
         }
     }
     draw() {
@@ -266,7 +289,7 @@ class Block extends Thing {
         if (cdif < 16) {
             let s = 1 - cdif / 16;
 
-            if(s > 1.25) {
+            if (s > 1.25) {
                 s = 1.25;
             }
 
@@ -320,14 +343,14 @@ class Bullet extends Thing {
         this.y = y;
 
         this.isSub = !!s;
-        this.ttl = 5000;
+        this.ttl = 2018; // It's actually 2016... as of March 6, 2018
 
         this.radius = 8;
 
         this.vx = Math.cos(this.ang) * this.speed;
         this.vy = Math.sin(this.ang) * this.speed;
 
-        this.color = "#0000FF";
+        this.color = "#00BEF3";
         this.blocksHit = 0;
     }
 
@@ -446,12 +469,12 @@ class Player extends Thing {
     constructor(p) {
         super(p, 2);
 
-        this.width = 72;
-        this.height = 72;
+        this.width = 128;
+        this.height = 128;
         this.x = (this.parent.width - this.width) / 2;
         this.y = (this.parent.height - this.height) / 4 * 3;
         this.speed = 0.005;
-        this.color = "#FF0000";
+        this.color = this.parent.img.player[0];
 
         this.baseHeight = 256;
         this.baseReach = this.parent.width / 3;
@@ -480,8 +503,18 @@ class Player extends Thing {
         X.fillRect(0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight);
     }
     drawPlayer(X) {
-        X.fillStyle = this.color;
-        X.fillRect(this.x, this.y, this.width, this.height);
+        if (typeof this.color == "string") {
+            X.fillStyle = this.color;
+            X.fillRect(this.x, this.y, this.width, this.height);
+        } else {
+            var ofx = (this.x + this.width / 2) - this.reachOrigin.x,
+                ofy = (this.y + this.height / 2) - this.reachOrigin.y;
+            X.save();
+            X.translate(this.x + this.width / 2, this.y + this.height / 2);
+            X.rotate(Math.atan2(ofy, ofx));
+            X.drawImage(this.color, 0, 0, this.color.width, this.color.height, -this.width / 2, -this.height / 2, this.width, this.height);
+            X.restore();
+        }
     }
     drawReach(X) {
         var ang = Math.atan2(
@@ -686,7 +719,7 @@ class StartScreen extends Screen {
         requestAnimationFrame(() => this.draw());
     }
     click() {
-        this.parent.gameScreen();
+        this.parent.next();
     }
 }
 
@@ -715,6 +748,13 @@ class GameScreen extends Screen {
         this.data = null;
         this.persistentData = new PersistentData();
 
+        this.loads = {
+            img: {
+                player: ["imgs/player0.png"]
+            }
+        };
+        this.img = {};
+
         this.setup();
     }
 
@@ -722,12 +762,34 @@ class GameScreen extends Screen {
         return this._loadedDependencies;
     }
     set loadedDependencies(e) {
-        if (this.loadedDependencies >= this.requiredDependencies) {
+        if (e >= this.requiredDependencies) {
             this.ready = true;
             return;
         }
 
         this._loadedDependencies = e;
+    }
+
+    preload() {
+        for (let ip in this.loads) {
+            let i = this.loads[ip];
+
+            for (let jp in i) {
+                let j = i[jp];
+
+                if (typeof j == "string") {
+                    this[ip][jp] = loadImage(j, this);
+                } else if (j instanceof Array) {
+                    let a = [];
+                    for (let x of j) {
+                        a.push(loadImage(x, this));
+                    }
+                    this[ip][jp] = a;
+                } else {
+                    throw new Error("this." + ip + "." + jp + " is not a string or array");
+                }
+            }
+        }
     }
 
     setup() {
@@ -736,6 +798,7 @@ class GameScreen extends Screen {
         };
 
         this.resize();
+        this.preload();
 
         // registers all event listeners I may need
         var listenerFuncs = {
@@ -778,8 +841,7 @@ class GameScreen extends Screen {
 
         this.listenerFuncs = listenerFuncs;
 
-        // temporary
-        this.loadedDependencies += 0;
+        this.X.imageSmoothingEnabled = false;
     }
 
     reset() {
@@ -951,6 +1013,7 @@ class P {
     constructor() {
         this._screen = null;
         this.lastScreen = null;
+        this.nextScreen = new GameScreen(this);
         this.startScreen();
     }
     get screen() {
@@ -969,6 +1032,10 @@ class P {
     }
     stop() {
         this.screen.stop();
+    }
+    next() {
+        this.screen = this.nextScreen;
+        this.nextScreen = null;
     }
     startScreen() {
         this.screen = new StartScreen(this);
