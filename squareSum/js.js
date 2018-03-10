@@ -181,7 +181,6 @@ function findPath() {
                     break;
                 }
             }
-
         }
 
         for(let i of OBS) {
