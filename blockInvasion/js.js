@@ -41,18 +41,19 @@ class Ob {
 }
 
 class Data {
-    constructor(p) {
+    constructor(p, isSim) {
         this.parent = p;
+        this.sim = isSim;
 
         this.timeElapsed = 0;
         this._gridOffset = 0;
         this.difficulty = 0;
-        this.speed = 1;
+        this.speed = isSim ? 1.2 : 1;
         this.bulletPow = 1;
 
         this.cooldown = {
             block: {
-                time: 1000,
+                time: isSim ? 500 : 1000,
                 min: 250,
                 now: 0,
                 e: 0
@@ -103,7 +104,12 @@ class Data {
     }
 
     warmup(tt) {
-        let pd = this.parent.player.lives <= 0;
+        let pd;
+        if(this.sim) {
+            pd = true;
+        } else {
+            pd = this.parent.player.lives <= 0;
+        }
 
         for (let i in this.cooldown) {
             let o = this.cooldown[i];
@@ -126,10 +132,6 @@ class Data {
         this.timeElapsed += tt;
         this.gridOffset += Block.vy * tt * this.speed;
         this.warmup(tt * this.speed);
-
-        if (this.bulletPow > 10) {
-            this.bulletPow = 10;
-        }
     }
 }
 
@@ -322,7 +324,7 @@ class Block extends Thing {
         if (this.rem) {
             if (this.playerDestroyed && this.special) {
                 if (this.reallySpecial) {
-                    this.parent.data.bulletPow += 0.2;
+                    this.parent.data.bulletPow += 0.25;
                 } else {
                     this.parent.data.cooldown.bullet.time *= 0.95;
                 }
@@ -343,12 +345,13 @@ class Bullet extends Thing {
         this.y = y;
 
         this.isSub = !!s;
-        this.ttl = 2018; // It's actually 2016... as of March 6, 2018
+        this.ttl = 2018 * this.speed; // It's actually 2016... as of March 6, 2018
 
         this.radius = 8;
 
-        this.vx = Math.cos(this.ang) * this.speed;
-        this.vy = Math.sin(this.ang) * this.speed;
+        // *INTENTIONAL: Bullets not affected by speed
+        this.vx = Math.cos(this.ang) * 1.3; 
+        this.vy = Math.sin(this.ang) * 1.3;
 
         this.color = "#00BEF3";
         this.blocksHit = 0;
@@ -547,6 +550,10 @@ class Player extends Thing {
         }
     }
 
+    collide() {
+        //
+    }
+
     spawnBullet() {
         var ofx = (this.x + this.width / 2) - this.reachOrigin.x,
             ofy = (this.y + this.height / 2) - this.reachOrigin.y;
@@ -557,27 +564,44 @@ class Player extends Thing {
     tick(tt) {
         if (this.lives <= 0) return;
 
-        var k = this.parent.key,
-            ax = 0,
+        var ax = 0,
             ay = 0,
             s = this.speed;
 
-        if (k[65] || k[37])
-            ax -= s;
-        if (k[87] || k[38])
-            ay -= s;
-        if (k[68] || k[39])
-            ax += s;
-        if (k[83] || k[40])
-            ay += s;
+        if (this.parent.usingMouse) {
+            let k = this.parent.mouse,
+                x = this.x + this.width / 2,
+                y = this.y + this.height / 2;
+
+            if (x > k.x + this.width / 4) {
+                ax -= 1;
+            } else if (x < k.x - this.width / 4) {
+                ax += 1;
+            }
+            if (y > k.y + this.height / 4) {
+                ay -= 1;
+            } else if (y < k.y - this.height / 4) {
+                ay += 1;
+            }
+        } else {
+            let k = this.parent.key;
+            if (k[65] || k[37])
+                ax -= 1;
+            if (k[87] || k[38])
+                ay -= 1;
+            if (k[68] || k[39])
+                ax += 1;
+            if (k[83] || k[40])
+                ay += 1;
+        }
 
         if (ax && ay) {
             ax *= Math.SQRT1_2;
             ay *= Math.SQRT1_2;
         }
 
-        this.vx += ax * tt;
-        this.vy += ay * tt;
+        this.vx += ax * s * tt;
+        this.vy += ay * s * tt;
 
         this.vx *= Math.pow(0.995, tt);
         this.vy *= Math.pow(0.995, tt);
@@ -591,6 +615,7 @@ class Player extends Thing {
             this.spawnBullet();
             this.parent.data.cooldown.bullet.e--;
         }
+        this.collide();
     }
 }
 
@@ -604,6 +629,8 @@ class Screen {
         this.width = 1080;
         this.height = 1920;
         this.ratio = this.width / this.height;
+        this.scaleX = 1;
+        this.scaleY = 1;
 
         this.lastSize = {
             w: 0,
@@ -632,17 +659,27 @@ class Screen {
             this.canvas.classList.add("h");
             this.canvas.width = h * this.ratio * dpr;
             this.canvas.height = h * dpr;
-            this.canvas.style.left = (w - this.canvas.width / dpr) / 2 + "px";
+
+            this.offsetX = (w - this.canvas.width / dpr) / 2;
+            this.canvas.style.left = this.offsetX + "px";
+
+            this.offsetY = 0;
             this.canvas.style.top = 0;
         } else {
             this.canvas.classList.remove("h");
             this.canvas.width = w * dpr;
             this.canvas.height = w / this.ratio * dpr;
+
+            this.offsetX = 0;
             this.canvas.style.left = 0;
-            this.canvas.style.top = (h - this.canvas.height / dpr) / 2 + "px";
+
+            this.offsetY = (h - this.canvas.height / dpr) / 2;
+            this.canvas.style.top = this.offsetY + "px";
         }
 
-        this.X.scale(this.canvas.width / this.width, this.canvas.height / this.height);
+        this.scaleX = this.canvas.width / this.width;
+        this.scaleY = this.canvas.height / this.height;
+        this.X.scale(this.scaleX, this.scaleY);
     }
     resizeLoop() { // because ios is bad
         if (w == this.lastSize.w && h == this.lastSize.h) {
@@ -658,10 +695,13 @@ class StartScreen extends Screen {
     constructor(e) {
         super(e);
 
-        this.bg = "#000000";
         this.fadeOut = null;
         this.fadeOutTime = 150;
         this.fading = false;
+
+        this.sim = new GameScreen(this, true);
+        this.sim.start();
+
         this.setup();
     }
     setup() {
@@ -701,18 +741,20 @@ class StartScreen extends Screen {
             this.fadeOut -= tt;
             if (this.fadeOut < 0) {
                 this.fading = false;
+                this.sim.stop();
                 return;
             }
 
             X.globalAlpha = this.fadeOut / this.fadeOutTime;
         }
+        
+        this.sim.draw();
 
-        X.fillStyle = this.bg;
-        X.fillRect(0, 0, this.width, this.height);
-
-        X.fillStyle = "#FFFFFF";
-        X.font = "36px Arial";
-        X.fillText("[insert title picture here]", 8, 720);
+        {
+            let txt = "Block Invasion";
+        } {
+            let txt = "Created By JaPNaA";
+        }
 
         X.restore();
 
@@ -724,10 +766,11 @@ class StartScreen extends Screen {
 }
 
 class GameScreen extends Screen {
-    constructor(e) {
+    constructor(e, isSim) {
         super(e);
 
         this.ready = false;
+        this.sim = !!isSim;
 
         this.obs = [
             [],
@@ -737,6 +780,8 @@ class GameScreen extends Screen {
         ];
 
         this.key = [];
+
+        this._usingMouse = false;
         this.mouse = {
             x: 0,
             y: 0
@@ -770,7 +815,22 @@ class GameScreen extends Screen {
         this._loadedDependencies = e;
     }
 
+    get usingMouse() {
+        return this._usingMouse;
+    }
+    set usingMouse(e) {
+        this.canvas.style.cursor = e ? "default" : "none";
+
+        this._usingMouse = e;
+    }
+
     preload() {
+        if (this.sim) {
+            this.requiredDependencies = 0;
+            this.loadedDependencies = 0;
+            this.ready = true;
+        }
+
         for (let ip in this.loads) {
             let i = this.loads[ip];
 
@@ -800,46 +860,48 @@ class GameScreen extends Screen {
         this.resize();
         this.preload();
 
-        // registers all event listeners I may need
-        var listenerFuncs = {
-            resize: e => this.resize(e),
-            mousemove: e => this.mousemove(e),
-            mousedown: e => this.mousedown(e),
-            mouseup: e => this.mouseup(e),
-            touchmove: e => this.touchmove(e),
-            touchstart: e => this.touchstart(e),
-            touchend: e => this.touchend(e),
-            keydown: e => this.keydown(e),
-            keyup: e => this.keyup(e),
-            blur: e => this.blur(e),
-            deviceorientation: e => this.deviceorientation(e),
-            scroll: function (e) {
-                e.preventDefault();
-                document.body.scrollTop = document.body.scrollLeft = 0;
-            }
-        };
+        if (!this.sim) {
+            // registers all event listeners I may need
+            var listenerFuncs = {
+                resize: e => this.resize(e),
+                mousemove: e => this.mousemove(e),
+                mousedown: e => this.mousedown(e),
+                mouseup: e => this.mouseup(e),
+                touchmove: e => this.touchmove(e),
+                touchstart: e => this.touchstart(e),
+                touchend: e => this.touchend(e),
+                keydown: e => this.keydown(e),
+                keyup: e => this.keyup(e),
+                blur: e => this.blur(e),
+                deviceorientation: e => this.deviceorientation(e),
+                scroll: function (e) {
+                    e.preventDefault();
+                    document.body.scrollTop = document.body.scrollLeft = 0;
+                }
+            };
 
-        addEventListener("resize", listenerFuncs.resize);
+            addEventListener("resize", listenerFuncs.resize);
 
-        addEventListener("mousemove", listenerFuncs.mousemove, passiveFalse);
-        addEventListener("mousedown", listenerFuncs.mousedown, passiveFalse);
-        addEventListener("mouseup", listenerFuncs.mouseup, passiveFalse);
+            addEventListener("mousemove", listenerFuncs.mousemove, passiveFalse);
+            addEventListener("mousedown", listenerFuncs.mousedown, passiveFalse);
+            addEventListener("mouseup", listenerFuncs.mouseup, passiveFalse);
 
-        addEventListener("touchmove", listenerFuncs.touchmove, passiveFalse);
-        addEventListener("touchstart", listenerFuncs.touchstart, passiveFalse);
-        addEventListener("touchend", listenerFuncs.touchend, passiveFalse);
+            addEventListener("touchmove", listenerFuncs.touchmove, passiveFalse);
+            addEventListener("touchstart", listenerFuncs.touchstart, passiveFalse);
+            addEventListener("touchend", listenerFuncs.touchend, passiveFalse);
 
-        addEventListener("keydown", listenerFuncs.keydown, passiveFalse);
-        addEventListener("keyup", listenerFuncs.keyup, passiveFalse);
-        addEventListener("blur", listenerFuncs.blur, passiveFalse);
+            addEventListener("keydown", listenerFuncs.keydown, passiveFalse);
+            addEventListener("keyup", listenerFuncs.keyup, passiveFalse);
+            addEventListener("blur", listenerFuncs.blur, passiveFalse);
 
-        addEventListener("deviceorientation", listenerFuncs.deviceorientation, {
-            passive: true
-        });
+            addEventListener("deviceorientation", listenerFuncs.deviceorientation, {
+                passive: true
+            });
 
-        addEventListener("scroll", listenerFuncs.scroll, true);
+            addEventListener("scroll", listenerFuncs.scroll, true);
 
-        this.listenerFuncs = listenerFuncs;
+            this.listenerFuncs = listenerFuncs;
+        }
 
         this.X.imageSmoothingEnabled = false;
     }
@@ -850,6 +912,15 @@ class GameScreen extends Screen {
         this.then = performance.now();
         for (let i of this.obs) {
             i.length = 0;
+        }
+
+        this.data = new Data(this, this.sim);
+        new Background(this);
+
+        if (this.sim) {
+            this.player = {lives: 0};
+        } else {
+            this.player = new Player(this);
         }
     }
 
@@ -862,10 +933,6 @@ class GameScreen extends Screen {
         this.started = true;
 
         this.reset();
-
-        this.data = new Data(this);
-        this.player = new Player(this);
-        new Background(this);
 
         this.draw();
     }
@@ -930,6 +997,7 @@ class GameScreen extends Screen {
             this.parent.lastScreen.draw(true);
         }
 
+        if(this.sim) return;
         requestAnimationFrame(() => this.draw());
     }
 
@@ -941,8 +1009,10 @@ class GameScreen extends Screen {
         if (!this.started) return;
         e.preventDefault();
 
-        this.mouse.x = e.layerX;
-        this.mouse.y = e.layerY;
+        this.mouse.x = (e.clientX - this.offsetX) / this.scaleX;
+        this.mouse.y = (e.clientY - this.offsetY) / this.scaleY;
+
+        this.usingMouse = true;
 
         this.event("mousemove", e);
     }
@@ -993,6 +1063,7 @@ class GameScreen extends Screen {
         this.keyprevdef(e);
 
         this.key[e.keyCode] = true;
+        this.usingMouse = false;
 
         this.event("keydown", e);
     }
