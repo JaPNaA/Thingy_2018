@@ -267,7 +267,7 @@ class Block extends Thing {
         if (this.value > 0) {
             let diff = (this.value - this.lvalue);
             if (diff <= 16) {
-                this.lvalue += diff / tt;
+                this.lvalue += diff / (500 / tt);
             } else {
                 this.lvalue = this.value - 16;
             }
@@ -702,6 +702,8 @@ class StartScreen extends Screen {
         this.sim = new GameScreen(this, true);
         this.sim.start();
 
+        this.color = "#FFFFFF";
+
         this.setup();
     }
     setup() {
@@ -750,10 +752,35 @@ class StartScreen extends Screen {
         
         this.sim.draw();
 
+        var txw;
+        X.shadowBlur = 16;
+        X.shadowOffsetX = 4;
+        X.shadowOffsetY = 4;
+        X.shadowColor = "#000000";
+        X.fillStyle = this.color;
         {
-            let txt = "Block Invasion";
+            X.font = "124px 'Russo One'";
+            let txt = "Block Invasion",
+                w = X.measureText(txt).width,
+                x = (this.width - w) / 2,
+                y = 830;
+            txw = x + w;
+            
+            X.fillText(txt, x, y);
         } {
-            let txt = "Created By JaPNaA";
+            X.font = "64px 'Patua One'";
+            let txt = "Created By JaPNaA",
+                w = X.measureText(txt).width,
+                x = txw - w,
+                y = 900;
+            
+            X.fillText(txt, x, y);
+        } {
+            X.font = "48px 'Patua One'";
+            let txt = "Play";
+        } {
+            X.font = "48px 'Pautua One'";
+            let txt = "Instructions";
         }
 
         X.restore();
@@ -1009,8 +1036,10 @@ class GameScreen extends Screen {
         if (!this.started) return;
         e.preventDefault();
 
-        this.mouse.x = (e.clientX - this.offsetX) / this.scaleX;
-        this.mouse.y = (e.clientY - this.offsetY) / this.scaleY;
+        var dpr = window.devicePixelRatio || 1;
+
+        this.mouse.x = (e.clientX - this.offsetX) / this.scaleX * dpr;
+        this.mouse.y = (e.clientY - this.offsetY) / this.scaleY * dpr;
 
         this.usingMouse = true;
 
@@ -1033,11 +1062,24 @@ class GameScreen extends Screen {
         e.preventDefault();
         if (!this.started) return;
 
+        var dpr = window.devicePixelRatio || 1,
+            f = e.changedTouches[0];
+
+        this.mouse.x = (f.clientX - this.offsetX) / this.scaleX * dpr;
+        this.mouse.y = (f.clientY - this.offsetY) / this.scaleY * dpr;
+
         this.event("touchmove", e);
     }
     touchstart(e) {
         if (!this.started) return;
         e.preventDefault();
+
+        var dpr = window.devicePixelRatio || 1,
+            f = e.changedTouches[0];
+
+        this.mouse.x = (f.clientX - this.offsetX) / this.scaleX * dpr;
+        this.mouse.y = (f.clientY - this.offsetY) / this.scaleY * dpr;
+        this.usingMouse = true;
 
         this.event("touchstart", e);
     }
