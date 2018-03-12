@@ -1,3 +1,9 @@
+/* jslint browser: true */
+/* global window */
+/* global console */
+
+'use strict';
+
 Math.TAU = Math.PI * 2;
 
 function pytha(x, y) {
@@ -105,7 +111,7 @@ class Data {
 
     warmup(tt) {
         let pd;
-        if(this.sim) {
+        if (this.sim) {
             pd = true;
         } else {
             pd = this.parent.player.lives <= 0;
@@ -337,12 +343,13 @@ class Block extends Thing {
 }
 
 class Bullet extends Thing {
-    constructor(p, x, y, a, s) {
+    constructor(p, x, y, a, d, s) {
         super(p, 1);
 
         this.ang = a;
         this.x = x;
         this.y = y;
+        this.spd = d;
 
         this.isSub = !!s;
         this.ttl = 2018 * this.speed; // It's actually 2016... as of March 6, 2018
@@ -350,8 +357,8 @@ class Bullet extends Thing {
         this.radius = 8;
 
         // *INTENTIONAL: Bullets not affected by speed
-        this.vx = Math.cos(this.ang) * 1.3; 
-        this.vy = Math.sin(this.ang) * 1.3;
+        this.vx = Math.cos(this.ang) * d;
+        this.vy = Math.sin(this.ang) * d;
 
         this.color = "#00BEF3";
         this.blocksHit = 0;
@@ -432,10 +439,9 @@ class Bullet extends Thing {
 
                 if (this.blocksHit > 5) {
                     this.rem = true;
-                    new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * 0.25, true);
-                    new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * 0.5, true);
-                    new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * 0.75, true);
-                    new Bullet(this.parent, this.x, this.y, this.ang, true);
+                    for(let i = 0; i < 4; i++) {
+                        new Bullet(this.parent, this.x, this,y, this.ang + Math.TAU * i * 25, this.spd, true);
+                    }
                 }
 
                 i.value -= this.parent.data.bulletPow;
@@ -472,8 +478,14 @@ class Player extends Thing {
     constructor(p) {
         super(p, 2);
 
-        this.width = 128;
-        this.height = 128;
+        this.width = 112;
+        this.height = 88;
+
+        this.hbwidth = 84;
+        this.hbheight = 84;
+        this.hbxofs = 12;
+        this.hbyofs = -4;
+
         this.x = (this.parent.width - this.width) / 2;
         this.y = (this.parent.height - this.height) / 4 * 3;
         this.speed = 0.005;
@@ -492,8 +504,22 @@ class Player extends Thing {
 
         this.maxBullets = 5;
         this.bullets = 0;
-        this.lives = 3;
+        this._lives = 3;
     }
+
+    get lives() {
+        return this._lives;
+    }
+    set lives(e) {
+        if(e < this._lives) {
+            // add animation of player malfunctioning electric
+        } else {
+            // add animation of healing
+        }
+
+        this._lives = e;
+    }
+
     draw() {
         if (this.lives <= 0) return;
         var X = this.parent.X;
@@ -551,14 +577,42 @@ class Player extends Thing {
     }
 
     collide() {
-        //
+        var x1 = this.x + this.hbxofs, 
+            y1 = this.y + this.hbyofs,
+            w1 = this.hbwidth,
+            h1 = this.hbheight;
+
+        for (let i of this.parent.obs[1]) {
+            if (!(i instanceof Block) || i.destroyed) continue;
+            
+            if (
+                x1 < i.x + i.width &&
+                x1 + w1 > i.x &&
+                y1 < i.y + i.height &&
+                y1 + h1 > i.y
+            ) {
+                i.value = 0;
+                this.lives--;
+                // at position of hit, add electric ball animation
+            }
+        }
     }
 
     spawnBullet() {
         var ofx = (this.x + this.width / 2) - this.reachOrigin.x,
-            ofy = (this.y + this.height / 2) - this.reachOrigin.y;
-        new Bullet(this.parent, this.x + this.width / 2, this.y + this.height / 2, Math.atan2(ofy, ofx));
+            ofy = (this.y + this.height / 2) - this.reachOrigin.y,
+            dist = Math.sqrt(ofx * ofx + ofy * ofy);
+
+        new Bullet(
+            this.parent, 
+            this.x + this.width / 2, 
+            this.y + this.height / 2, 
+            Math.atan2(ofy, ofx), 
+            dist / this.baseReach * 0.55 + 0.8
+        );
         this.bullets++;
+        
+        // add vfx of recoil
     }
 
     tick(tt) {
@@ -639,15 +693,37 @@ class Screen {
         this.resizing = false;
         this.then = 0;
 
+        this.requiredDependencies = 0;
+        this._loadedDependencies = 0;
+        this.ready = false;
+
         this.started = false;
+        this.autoStart = false;
     }
+
+    get loadedDependencies() {
+        return this._loadedDependencies;
+    }
+
+    set loadedDependencies(e) {
+        if (e >= this.requiredDependencies) {
+            this.ready = true;
+            if (this.autoStart) {
+                this.start();
+            }
+            return;
+        }
+
+        this._loadedDependencies = e;
+    }
+
     start() {}
     stop() {}
     resize() {
         if (this.resizing) return;
         var dpr = window.devicePixelRatio || 1,
-            w = innerWidth,
-            h = innerHeight;
+            w = window.innerWidth,
+            h = window.innerHeight;
 
         if (w == this.lastSize.w && h == this.lastSize.h) {
             this.resizeLoop();
@@ -682,6 +758,8 @@ class Screen {
         this.X.scale(this.scaleX, this.scaleY);
     }
     resizeLoop() { // because ios is bad
+        var w = window.innerWidth,
+            h = window.innerHeight;
         if (w == this.lastSize.w && h == this.lastSize.h) {
             requestAnimationFrame(() => this.resizeLoop());
         } else {
@@ -704,13 +782,21 @@ class StartScreen extends Screen {
 
         this.color = "#FFFFFF";
 
+        this.autoStart = true;
+
         this.setup();
     }
+
     setup() {
         this.listenerFuncs = {
             resize: e => this.resize(e),
             click: e => this.click(e)
         };
+
+        if (!document.fonts.check("1em 'Parua One'") || !document.fonts.check("1em 'Russo One'")) {
+            this.requiredDependencies++;
+            document.fonts.ready.then(() => this.loadedDependencies++);
+        }
 
         addEventListener("resize", this.listenerFuncs.resize);
 
@@ -718,8 +804,11 @@ class StartScreen extends Screen {
         addEventListener("touchend", this.listenerFuncs.click);
 
         this.resize();
+        this.draw();
     }
     start() {
+        if (this.started) return;
+        if (!this.ready) return;
         this.started = true;
         this.draw();
     }
@@ -732,10 +821,18 @@ class StartScreen extends Screen {
         removeEventListener("touchend", this.listenerFuncs.click);
     }
     draw(e) {
+        var X = this.X;
+        if (!this.ready) {
+            X.fillRect(0, 0, this.width, this.height);
+            X.font = "bold 124px 'Courier New'";
+            X.fillStyle = "#FFF";
+            X.fillText("Loading...", 168, 830);
+            return;
+        }
+        if (!this.started) return;
         if (!this.started && !e) return;
         var now = performance.now(),
-            tt = now - this.then,
-            X = this.X;
+            tt = now - this.then;
         this.then = now;
 
         X.save();
@@ -749,7 +846,7 @@ class StartScreen extends Screen {
 
             X.globalAlpha = this.fadeOut / this.fadeOutTime;
         }
-        
+
         this.sim.draw();
 
         var txw;
@@ -757,15 +854,14 @@ class StartScreen extends Screen {
         X.shadowOffsetX = 4;
         X.shadowOffsetY = 4;
         X.shadowColor = "#000000";
-        X.fillStyle = this.color;
-        {
+        X.fillStyle = this.color; {
             X.font = "124px 'Russo One'";
             let txt = "Block Invasion",
                 w = X.measureText(txt).width,
                 x = (this.width - w) / 2,
                 y = 830;
             txw = x + w;
-            
+
             X.fillText(txt, x, y);
         } {
             X.font = "64px 'Patua One'";
@@ -773,7 +869,7 @@ class StartScreen extends Screen {
                 w = X.measureText(txt).width,
                 x = txw - w,
                 y = 900;
-            
+
             X.fillText(txt, x, y);
         } {
             X.font = "48px 'Patua One'";
@@ -796,7 +892,6 @@ class GameScreen extends Screen {
     constructor(e, isSim) {
         super(e);
 
-        this.ready = false;
         this.sim = !!isSim;
 
         this.obs = [
@@ -814,9 +909,6 @@ class GameScreen extends Screen {
             y: 0
         };
 
-        this._loadedDependencies = 0;
-        this.requiredDependencies = 0;
-
         this.data = null;
         this.persistentData = new PersistentData();
 
@@ -828,18 +920,6 @@ class GameScreen extends Screen {
         this.img = {};
 
         this.setup();
-    }
-
-    get loadedDependencies() {
-        return this._loadedDependencies;
-    }
-    set loadedDependencies(e) {
-        if (e >= this.requiredDependencies) {
-            this.ready = true;
-            return;
-        }
-
-        this._loadedDependencies = e;
     }
 
     get usingMouse() {
@@ -921,9 +1001,10 @@ class GameScreen extends Screen {
             addEventListener("keyup", listenerFuncs.keyup, passiveFalse);
             addEventListener("blur", listenerFuncs.blur, passiveFalse);
 
-            addEventListener("deviceorientation", listenerFuncs.deviceorientation, {
-                passive: true
-            });
+            // TEMP! Uncomment
+            // addEventListener("deviceorientation", listenerFuncs.deviceorientation, {
+            //     passive: true
+            // });
 
             addEventListener("scroll", listenerFuncs.scroll, true);
 
@@ -945,7 +1026,9 @@ class GameScreen extends Screen {
         new Background(this);
 
         if (this.sim) {
-            this.player = {lives: 0};
+            this.player = {
+                lives: 0
+            };
         } else {
             this.player = new Player(this);
         }
@@ -953,9 +1036,9 @@ class GameScreen extends Screen {
 
     start() {
         if (!this.ready) {
-            throw new Error("Attempted to start game before ready");
-            return;
-        }
+            this.autoStart = true;
+            return true;
+        } 
         if (this.started) return;
         this.started = true;
 
@@ -1024,7 +1107,7 @@ class GameScreen extends Screen {
             this.parent.lastScreen.draw(true);
         }
 
-        if(this.sim) return;
+        if (this.sim) return;
         requestAnimationFrame(() => this.draw());
     }
 
@@ -1133,6 +1216,19 @@ class P {
         return this._screen;
     }
     set screen(e) {
+        if (!this._screen) {
+            this.lastScreen = this.screen;
+            this._screen = e;
+        } else
+        if (!this.screen.started) {
+            if (this.screen.start()) {
+                this.swsc(e);
+            }
+        } else {
+            this.swsc(e);
+        }
+    }
+    swsc(e) {
         if (this.screen) {
             this.screen.stop();
         }
@@ -1148,6 +1244,7 @@ class P {
     }
     next() {
         this.screen = this.nextScreen;
+        if(this.screen != this.nextScreen) return;
         this.nextScreen = null;
     }
     startScreen() {
