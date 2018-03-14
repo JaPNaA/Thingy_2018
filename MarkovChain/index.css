@@ -1,0 +1,29 @@
+body {
+    cursor: default;
+}
+
+textarea {
+    width: 100%;
+    box-sizing: border-box;
+    height: 35vh;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-right: 0;
+    margin-right: 8px;
+    resize: vertical;
+    cursor: text;
+}
+
+button {
+    margin: 8px 0px;
+    cursor: pointer;
+}
+
+input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.separator {
+    display: inline-block;
+    width: 16px;
+}
