@@ -3,6 +3,6 @@ Press submit to view the result!
 
 Hey there, my name is JaPNaA, and I've created this program, which uses Markov Chains to replicate the way you speak. Obviously, this isn't going to exactly copy what you say, because that would be boring. Instead, it will create some other text similar to the text you've supplied it with. It reads the input, and takes not of each word, and what comes before of after the word. Then from that, it will try to generate a new piece of text similar to of yours. If you input enough text to this, it can create some interesting texts that can make slight grammatical sense (assuming that YOU made grammatical sense). If you really want this program to make some weirder text, you can check "ignore extra", which will ignore punctuation, newlines, and all that other stuff, so you get pure words. This can be easier to get more random text, but you would be giving some grammar.
 
-You may also see that there's also a "character mode" check box. This check box will instead of looking at words, will cause it to look at each individual letter, space newline, etc.
+You may also see that there's also a "character mode" check box. This check box will instead of looking at words, will cause it to look at each individual letter, space, newline, etc.
 
 Also, this program may work better if you end on something you've said before in the text. Hey there.
