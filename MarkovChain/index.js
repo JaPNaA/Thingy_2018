@@ -43,7 +43,7 @@ OUT.addEventListener("click", function() {
     OUT.select();
 });
 addEventListener("keydown", function(e) {
-    if (!e.ctrlKey) return;
+    if (!e.ctrlKey || document.activeElement == IN) return;
 
     if(e.keyCode == 67) {
         OUT.focus();
