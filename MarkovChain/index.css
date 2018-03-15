@@ -12,6 +12,7 @@ textarea {
     margin-right: 8px;
     resize: vertical;
     cursor: text;
+    outline: none;
 }
 
 button {

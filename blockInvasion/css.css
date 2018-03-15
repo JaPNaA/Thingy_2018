@@ -1,14 +1,16 @@
 body {
-    background-image: linear-gradient(
-        90deg,
-        #1b1b1b 0%,
-        #ffffff 50%,
-        #1b1b1b 100%
-    );
     background-color: #575757;
     margin: 0;
     padding: 0;
     border: 0;
+}
+
+body:not(.h) {
+    background-image: linear-gradient(0deg, #1b1b1b 0%, #ffffff 50%, #1b1b1b 100%);
+}
+
+body.h {
+    background-image: linear-gradient(90deg, #1b1b1b 0%, #ffffff 50%, #1b1b1b 100%);
 }
 
 canvas {

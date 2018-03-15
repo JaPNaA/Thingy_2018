@@ -39,6 +39,32 @@ AO.addEventListener("change", sendConfig);
 
 SBM.addEventListener("click", update);
 
+OUT.addEventListener("click", function() {
+    OUT.select();
+});
+addEventListener("keydown", function(e) {
+    if (!e.ctrlKey) return;
+
+    if(e.keyCode == 67) {
+        OUT.focus();
+        OUT.select();
+        document.execCommand("copy");
+    }
+    if (e.keyCode == 65) {
+        OUT.focus();
+        OUT.select();
+    }
+});
+addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+    if(confirm("Copy output text?")) {
+        OUT.focus();
+        OUT.select();
+        document.execCommand("copy");
+        IN.focus();
+    }
+});
+
 sendConfig();
 
 WKR.addEventListener("message", function(e) {
