@@ -68,7 +68,13 @@ class Data {
         this.breakScore = 0;
         this.expScore = 0;
 
-        this.playerAlive = true;
+        this.afterMath = {
+            hitScore: 0,
+            breakScore: 0,
+            expScore: 0
+        };
+
+        this._playerAlive = true;
 
         this.cooldown = {
             block: {
@@ -123,7 +129,20 @@ class Data {
     }
 
     get score() {
-        return Math.floor(this.timeAlive / 100 + this.hitScore + this.expScore * 12 + this.breakScore * 16);
+        return Math.floor(this.timeAlive * 0.01 + this.hitScore + this.expScore * 12 + this.breakScore * 16);
+    }
+    get afterMathScore() {
+        return this.afterMath.hitScore + this.afterMath.expScore * 12 + this.afterMath.breakScore * 16;
+    }
+
+    get playerAlive() {
+        return this._playerAlive;
+    }
+    set playerAlive(e) {
+        if (!e && e != this._playerAlive) {
+            this.parent.death();
+        }
+        this._playerAlive = e;
     }
 
     warmup(tt) {
@@ -152,6 +171,8 @@ class Data {
     }
 
     tick(tt) {
+        if (!this.parent.focused) return;
+
         this.timeElapsed += tt;
 
         if(this.playerAlive) {
@@ -163,13 +184,25 @@ class Data {
     }
 
     hitScoreAdd(e) {
-        this.hitScore += e;
+        if (this.playerAlive) {
+            this.hitScore += e;
+        } else {
+            this.afterMath.hitScore += e;
+        }
     }
     expScoreAdd(e) {
-        this.expScore += e;
+        if (this.playerAlive) {
+            this.expScore += e;
+        } else {
+            this.afterMath.expScore += e;
+        }
     }
     breakScoreAdd(e) {
-        this.breakScore += e;
+        if (this.playerAlive) {
+            this.breakScore += e;
+        } else {
+            this.afterMath.breakScore += e;
+        }
     }
 }
 
@@ -238,6 +271,8 @@ class Block extends Thing {
         this.value = 1 * this.parent.data.difficulty;
         this.lvalue = this.value;
 
+        this.rewarded = false;
+
         this.special = false;
         this.reallySpecial = false;
 
@@ -286,6 +321,19 @@ class Block extends Thing {
         this.y += this.vy * this.speed * tt;
         if (this.destroyed) {
             this.destroyedAniStep -= tt;
+
+            if (this.playerDestroyed && !this.rewarded) {
+                if (this.reallySpecial) {
+                    this.parent.data.bulletPow += 0.5;
+                    this.parent.data.breakScoreAdd(4);
+                } else if (this.special) {
+                    this.parent.data.cooldown.bullet.time *= 0.95;
+                    this.parent.data.breakScoreAdd(16);
+                } else {
+                    this.parent.data.breakScoreAdd(1);
+                }
+                this.rewarded = true;
+            }
 
             if (this.destroyedAniStep < 0) {
                 this.rem = true;
@@ -365,18 +413,6 @@ class Block extends Thing {
     }
     remove() {
         if (this.rem) {
-            if (this.playerDestroyed) {
-                if (this.reallySpecial) {
-                    this.parent.data.bulletPow += 0.25;
-                    this.parent.data.breakScoreAdd(4);
-                } else if (this.special) {
-                    this.parent.data.cooldown.bullet.time *= 0.95;
-                    this.parent.data.breakScoreAdd(16);
-                } else {
-                    this.parent.data.breakScoreAdd(1);
-                }
-            }
-
             let o = this.parent.obs[this.layer];
             o.splice(o.indexOf(this), 1);
         }
@@ -536,7 +572,7 @@ class Player extends Thing {
 
         this.baseHeight = 256;
         this.baseReach = this.parent.width / 3;
-        this.baseColor = ["#660000", "#666600", "#006600"];
+        this.baseColor = this.parent.img.base;
 
         this.reachOrigin = {
             x: this.parent.width / 2,
@@ -548,6 +584,8 @@ class Player extends Thing {
         this.maxBullets = 7;
         this.bullets = 0;
         this._lives = 3;
+
+        this.aniframe = 0;
     }
 
     get lives() {
@@ -571,22 +609,45 @@ class Player extends Thing {
         this.drawPlayer(X);
     }
     drawBase(X) {
-        X.fillStyle = this.baseColor[this.lives - 1];
-        X.fillRect(0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight);
+        let img = this.baseColor[this.lives - 1],
+            af = Math.floor(this.aniframe) + 1,
+            tr = this.aniframe % 1;
+        
+        if (!img) return;
+        let imgf = img[af % img.length],
+            imgl = img[(af - 1) % img.length];
+
+        if (!imgf) return;
+
+        X.save();
+
+        X.imageSmoothingEnabled = false;
+        
+        X.drawImage(
+            imgl, 
+            0, 0, imgl.width, imgl.height,
+            0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight
+        );
+
+        X.globalAlpha = easeInOutQuad(tr);
+        X.drawImage(
+            imgf,
+            0, 0, imgf.width, imgf.height,
+            0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight
+        );
+
+        X.restore();
     }
     drawPlayer(X) {
-        if (typeof this.color == "string") {
-            X.fillStyle = this.color;
-            X.fillRect(this.x, this.y, this.width, this.height);
-        } else {
-            var ofx = (this.x + this.width / 2) - this.reachOrigin.x,
-                ofy = (this.y + this.height / 2) - this.reachOrigin.y;
-            X.save();
-            X.translate(this.x + this.width / 2, this.y + this.height / 2);
-            X.rotate(Math.atan2(ofy, ofx));
-            X.drawImage(this.color, 0, 0, this.color.width, this.color.height, -this.width / 2, -this.height / 2, this.width, this.height);
-            X.restore();
-        }
+        X.imageSmoothingEnabled = true;
+        
+        var ofx = (this.x + this.width / 2) - this.reachOrigin.x,
+            ofy = (this.y + this.height / 2) - this.reachOrigin.y;
+        X.save();
+        X.translate(this.x + this.width / 2, this.y + this.height / 2);
+        X.rotate(Math.atan2(ofy, ofx));
+        X.drawImage(this.color, 0, 0, this.color.width, this.color.height, -this.width / 2, -this.height / 2, this.width, this.height);
+        X.restore();
     }
     drawReach(X) {
         var ang = Math.atan2(
@@ -664,6 +725,8 @@ class Player extends Thing {
             return;
         }
 
+        this.aniframe += tt / 250;
+
         var ax = 0,
             ay = 0,
             s = this.speed;
@@ -724,14 +787,13 @@ class ScoreDisplay extends Overlay {
         super(p);
         
         this.data = this.parent.data;
-        console.log("construct");
     }
     draw() {
         var X = this.parent.X;
 
         X.save();
 
-        X.font = "bold 48px Arial";
+        X.font = "bold 52px Arial";
         X.fillStyle = "#FFFFFF";
 
         X.shadowBlur = 4;
@@ -739,9 +801,25 @@ class ScoreDisplay extends Overlay {
         X.shadowOffsetX = 2;
         X.shadowOffsetY = 2;
 
-        X.fillText(this.data.score, 8, 52);
-
+        X.fillText(this.data.score, 16, 1896);
+        if (!this.parent.data.playerAlive) {
+            X.fillText(this.data.afterMathScore, 16, 1836);
+        }
+        
         X.restore();
+    }
+}
+
+class DeathPrompt extends Overlay{
+    constructor(p) {
+        super(p);
+    }
+    draw() {
+        var X = this.parent.X;
+
+        X.font = 'bold 64px Arial';
+        X.fillStyle = '#888888';
+        X.fillText("You died", 64, 940);
     }
 }
 
@@ -948,6 +1026,8 @@ class Screen {
             y: 0
         };
 
+        this.focused = true;
+
         this.lastSize = {
             w: 0,
             h: 0
@@ -977,6 +1057,10 @@ class Screen {
         }
 
         this._loadedDependencies = e;
+    }
+
+    reqanf() {
+        requestAnimationFrame(() => this.draw());
     }
 
     start() {}
@@ -1130,8 +1214,15 @@ class Screen {
 
         this.event("keyup", e);
     }
+
     blur(e) {
         this.key.length = 0;
+        this.focused = false;
+        this.then = performance.now();
+    }
+    focus(e) {
+        this.focused = true;
+        this.prevframefoc = false;
     }
 }
 
@@ -1240,6 +1331,7 @@ class StartScreen extends Screen {
             if (this.fadeOut < 0) {
                 this.fading = false;
                 this.sim.stop();
+                this.started = false;
                 return;
             }
 
@@ -1278,7 +1370,7 @@ class StartScreen extends Screen {
 
         X.restore();
 
-        requestAnimationFrame(() => this.draw());
+        this.reqanf();
     }
     play() {
         this.parent.next();
@@ -1298,6 +1390,8 @@ class GameScreen extends Screen {
             []
         ];
 
+        this.prevframefoc = true;
+
         this._usingMouse = false;
 
         this.data = null;
@@ -1305,7 +1399,12 @@ class GameScreen extends Screen {
 
         this.loads = {
             img: {
-                player: ["imgs/player0.png"]
+                player: ["imgs/player0.png"],
+                base: [
+                    ["imgs/base0_0.png", "imgs/base0_1.png", "imgs/base0_2.png", "imgs/base0_3.png", "imgs/base0_4.png", "imgs/base0_5.png"],
+                    ["imgs/base1_0.png", "imgs/base1_1.png", "imgs/base1_2.png", "imgs/base1_3.png", "imgs/base1_4.png", "imgs/base1_5.png"], 
+                    ["imgs/base2.png"]
+                ]
             }
         };
         this.img = {};
@@ -1329,6 +1428,8 @@ class GameScreen extends Screen {
             this.ready = true;
         }
 
+        // very ugly, fix soon
+
         for (let ip in this.loads) {
             let i = this.loads[ip];
 
@@ -1340,7 +1441,15 @@ class GameScreen extends Screen {
                 } else if (j instanceof Array) {
                     let a = [];
                     for (let x of j) {
-                        a.push(loadImage(x, this));
+                        if (typeof x == "string") {
+                            a.push(loadImage(x, this));
+                        } else {
+                            let b = [];
+                            for (let y of x) {
+                                b.push(loadImage(y, this));
+                            }
+                            a.push(b);
+                        }
                     }
                     this[ip][jp] = a;
                 } else {
@@ -1371,6 +1480,7 @@ class GameScreen extends Screen {
                 keydown: e => this.keydown(e),
                 keyup: e => this.keyup(e),
                 blur: e => this.blur(e),
+                focus: e => this.focus(e),
                 deviceorientation: e => this.deviceorientation(e),
                 scroll: function (e) {
                     e.preventDefault();
@@ -1391,7 +1501,9 @@ class GameScreen extends Screen {
 
             addEventListener("keydown", listenerFuncs.keydown, passiveFalse);
             addEventListener("keyup", listenerFuncs.keyup, passiveFalse);
+
             addEventListener("blur", listenerFuncs.blur, passiveFalse);
+            addEventListener("focus", listenerFuncs.focus, passiveFalse);
 
             addEventListener("contextmenu", listenerFuncs.contextmenu);
 
@@ -1488,8 +1600,38 @@ class GameScreen extends Screen {
         }
     }
 
+    drawPaused() {
+        var X = this.X;
+
+        X.fillStyle = "#00000038";
+        X.fillRect(0, 0, this.width, this.height);
+
+        {
+            X.font = "bold 72px Arial";
+
+            let txt = "Paused",
+                txtw = X.measureText(txt).width;
+
+            X.fillStyle = "#FFFFFF";
+            X.fillText(txt, (this.width - txtw) / 2, 956);
+        }
+    }
+
     draw() {
         if (!this.started) return;
+
+        if (!this.prevframefoc && this.focused) {
+            this.then = performance.now();
+            console.log("rtf");
+        }
+
+        this.prevframefoc = this.focused;
+
+        if (!this.focused) {
+            this.drawPaused();
+            this.reqanf();
+            return;
+        }
         var now = performance.now(),
             tt = now - this.then;
         this.then = now;
@@ -1503,7 +1645,11 @@ class GameScreen extends Screen {
         }
 
         if (this.sim) return;
-        requestAnimationFrame(() => this.draw());
+        this.reqanf();
+    }
+
+    death() {
+        new DeathPrompt(this);
     }
 }
 
