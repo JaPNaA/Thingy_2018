@@ -972,16 +972,25 @@ class Button extends UIElement {
             this.active = true;
         }
     }
-
     mouseup(e) {
-        if (this.checkInside(this.parent.mouse.x, this.parent.mouse.y)) {
+        if (this.checkInside(this.parent.mouse.x, this.parent.mouse.y) && this.active) {
             this._dispatchEvent("click");
         }
         this.active = false;
     }
-
     mousemove(e) {
         this.hover = this.checkInside(this.parent.mouse.x, this.parent.mouse.y);
+    }
+
+    touchstart(e) {
+        this.mousedown();
+    }
+    touchmove(e) {
+        this.mousemove();
+    }
+    touchend(e) {
+        this.mouseup();
+        this.hover = false;
     }
 
     cursor() {
@@ -1000,6 +1009,15 @@ class Button extends UIElement {
                 break;
             case "mouseup":
                 this.mouseup(e);
+                break;
+            case "touchstart":
+                this.touchstart(e);
+                break;
+            case "touchmove":
+                this.touchmove(e);
+                break;
+            case "touchend":
+                this.touchend(e);
                 break;
         }
     }
@@ -1252,11 +1270,18 @@ class StartScreen extends Screen {
     }
 
     setup() {
+        var passiveFalse = {
+            passive: false
+        };
+
         this.listenerFuncs = {
             resize: e => this.resize(e),
             mouseup: e => this.mouseup(e),
             mousedown: e => this.mousedown(e),
-            mousemove: e => this.mousemove(e)
+            mousemove: e => this.mousemove(e),
+            touchend: e => this.touchend(e),
+            touchstart: e => this.touchstart(e),
+            touchmove: e => this.touchmove(e)
         };
 
         if (!document.fonts.check("1em 'Parua One'") || !document.fonts.check("1em 'Russo One'")) {
@@ -1264,16 +1289,16 @@ class StartScreen extends Screen {
             document.fonts.ready.then(() => this.loadedDependencies++);
         }
 
-        addEventListener("resize", this.listenerFuncs.resize);
+        addEventListener("resize", this.listenerFuncs.resize, passiveFalse);
 
-        addEventListener("mouseup", this.listenerFuncs.mouseup);
-        addEventListener("touchend", this.listenerFuncs.mouseup);
+        addEventListener("mouseup", this.listenerFuncs.mouseup, passiveFalse);
+        addEventListener("mousedown", this.listenerFuncs.mousedown, passiveFalse);
+        addEventListener("mousemove", this.listenerFuncs.mousemove, passiveFalse);
+        
+        addEventListener("touchend", this.listenerFuncs.touchend, passiveFalse);
+        addEventListener("touchstart", this.listenerFuncs.touchstart, passiveFalse);
+        addEventListener("touchmove", this.listenerFuncs.touchmove, passiveFalse);
 
-        addEventListener("mousedown", this.listenerFuncs.mousedown);
-        addEventListener("touchstart", this.listenerFuncs.mousedown);
-
-        addEventListener("mousemove", this.listenerFuncs.mousemove);
-        addEventListener("touchmove", this.listenerFuncs.mousemove);
 
         {
             let a = new Button(this, 300, 956, 480, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play");
