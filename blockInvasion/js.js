@@ -71,7 +71,8 @@ class Data {
         this.afterMath = {
             hitScore: 0,
             breakScore: 0,
-            expScore: 0
+            expScore: 0,
+            done: false
         };
 
         this._playerAlive = true;
@@ -177,6 +178,20 @@ class Data {
 
         if(this.playerAlive) {
             this.timeAlive = this.timeElapsed;
+        } else {
+            if (!this.afterMath.done) {
+                let f = false;
+                for (let i of this.parent.obs) {
+                    if (i.find(e => e instanceof Bullet)) {
+                        f = true;
+                        break;
+                    }
+                }
+                if (!f) {
+                    this.afterMath.done = true;
+                    this.parent.deathPrompt.afterMathDone();
+                }
+            }
         }
 
         this.gridOffset += Block.vy * tt * this.speed;
@@ -186,21 +201,21 @@ class Data {
     hitScoreAdd(e) {
         if (this.playerAlive) {
             this.hitScore += e;
-        } else {
+        } else if (!this.afterMath.done) {
             this.afterMath.hitScore += e;
         }
     }
     expScoreAdd(e) {
         if (this.playerAlive) {
             this.expScore += e;
-        } else {
+        } else if (!this.afterMath.done) {
             this.afterMath.expScore += e;
         }
     }
     breakScoreAdd(e) {
         if (this.playerAlive) {
             this.breakScore += e;
-        } else {
+        } else if (!this.afterMath.done) {
             this.afterMath.breakScore += e;
         }
     }
@@ -271,7 +286,7 @@ class Block extends Thing {
         this.value = 1 * this.parent.data.difficulty;
         this.lvalue = this.value;
 
-        this.rewarded = false;
+        this.payloaded = false;
 
         this.special = false;
         this.reallySpecial = false;
@@ -322,17 +337,23 @@ class Block extends Thing {
         if (this.destroyed) {
             this.destroyedAniStep -= tt;
 
-            if (this.playerDestroyed && !this.rewarded) {
-                if (this.reallySpecial) {
-                    this.parent.data.bulletPow += 0.5;
-                    this.parent.data.breakScoreAdd(4);
-                } else if (this.special) {
-                    this.parent.data.cooldown.bullet.time *= 0.95;
-                    this.parent.data.breakScoreAdd(16);
+            if (!this.payloaded) {
+                if (this.playerDestroyed) {
+                    if (this.reallySpecial) {
+                        this.parent.data.bulletPow += 0.5;
+                        this.parent.data.breakScoreAdd(4);
+                    } else if (this.special) {
+                        this.parent.data.cooldown.bullet.time *= 0.95;
+                        this.parent.data.breakScoreAdd(16);
+                    } else {
+                        this.parent.data.breakScoreAdd(1);
+                    }
+                    this.payloaded = true;
                 } else {
-                    this.parent.data.breakScoreAdd(1);
+                    this.parent.data.breakScoreAdd(Math.min(this.value, -1) * 100);
+                    console.log("ms");
                 }
-                this.rewarded = true;
+                this.payloaded = true;
             }
 
             if (this.destroyedAniStep < 0) {
@@ -341,7 +362,10 @@ class Block extends Thing {
             return;
         }
 
-        if (this.parent.data.playerAlive && this.y + this.height - this.margin > this.parent.height - this.parent.player.baseHeight) {
+        if (
+            this.parent.data.playerAlive && 
+            this.y + this.height - this.margin > this.parent.height - this.parent.player.baseHeight
+        ) {
             this.destroyed = true;
             this.parent.player.lives--;
         }
@@ -352,6 +376,7 @@ class Block extends Thing {
 
         if (this.value <= 0) { // remove if 0 or outside screen
             this.destroyed = true;
+            this.playerDestroyed = true;
         }
 
         if (this.value > 0) {
@@ -695,7 +720,7 @@ class Player extends Thing {
                 y1 < i.y + i.height &&
                 y1 + h1 > i.y
             ) {
-                i.value = 0;
+                i.rem = true;
                 this.lives--;
                 // at position of hit, add electric ball animation
             }
@@ -734,18 +759,34 @@ class Player extends Thing {
         if (this.parent.usingMouse) {
             let k = this.parent.mouse,
                 x = this.x + this.width / 2,
-                y = this.y + this.height / 2;
+                y = this.y + this.height / 2,
+                ofx = k.x - x, 
+                ofy = k.y - y;
 
-            if (x > k.x + this.width / 4) {
-                ax -= 1;
-            } else if (x < k.x - this.width / 4) {
-                ax += 1;
+            if (Math.abs(ofx) > Math.abs(ofy)) {
+                if (ofx > 0) {
+                    ax += 1;
+                } else {
+                    ax -= 1;
+                }
+            } else {
+                if (ofy > 0) {
+                    ay += 1;
+                } else {
+                    ay -= 1;
+                }
             }
-            if (y > k.y + this.height / 4) {
-                ay -= 1;
-            } else if (y < k.y - this.height / 4) {
-                ay += 1;
-            }
+
+            // if (x > k.x + this.width / 4) {
+            //     ax -= 1;
+            // } else if (x < k.x - this.width / 4) {
+            //     ax += 1;
+            // }
+            // if (y > k.y + this.height / 4) {
+            //     ay -= 1;
+            // } else if (y < k.y - this.height / 4) {
+            //     ay += 1;
+            // }
         } else {
             let k = this.parent.key;
             if (k[65] || k[37])
@@ -820,6 +861,9 @@ class DeathPrompt extends Overlay{
         X.font = 'bold 64px Arial';
         X.fillStyle = '#888888';
         X.fillText("You died", 64, 940);
+    }
+    afterMathDone() {
+        console.log("aftmd");
     }
 }
 
@@ -1287,6 +1331,8 @@ class StartScreen extends Screen {
         if (!document.fonts.check("1em 'Parua One'") || !document.fonts.check("1em 'Russo One'")) {
             this.requiredDependencies++;
             document.fonts.ready.then(() => this.loadedDependencies++);
+        } else {
+            this.loadedDependencies = this.loadedDependencies;
         }
 
         addEventListener("resize", this.listenerFuncs.resize, passiveFalse);
@@ -1548,6 +1594,7 @@ class GameScreen extends Screen {
     reset() {
         this.data = null;
         this.player = null;
+        this.deathPrompt = null;
         this.then = performance.now();
         for (let i of this.obs) {
             i.length = 0;
@@ -1647,7 +1694,6 @@ class GameScreen extends Screen {
 
         if (!this.prevframefoc && this.focused) {
             this.then = performance.now();
-            console.log("rtf");
         }
 
         this.prevframefoc = this.focused;
@@ -1674,7 +1720,7 @@ class GameScreen extends Screen {
     }
 
     death() {
-        new DeathPrompt(this);
+        this.deathPrompt = new DeathPrompt(this);
     }
 }
 
