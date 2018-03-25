@@ -351,7 +351,6 @@ class Block extends Thing {
                     this.payloaded = true;
                 } else {
                     this.parent.data.breakScoreAdd(Math.min(this.value, -1) * 100);
-                    console.log("ms");
                 }
                 this.payloaded = true;
             }
@@ -854,6 +853,8 @@ class ScoreDisplay extends Overlay {
 class DeathPrompt extends Overlay{
     constructor(p) {
         super(p);
+
+        this.aftmd = false;
     }
     draw() {
         var X = this.parent.X;
@@ -863,7 +864,7 @@ class DeathPrompt extends Overlay{
         X.fillText("You died", 64, 940);
     }
     afterMathDone() {
-        console.log("aftmd");
+        this.aftmd = true;
     }
 }
 
