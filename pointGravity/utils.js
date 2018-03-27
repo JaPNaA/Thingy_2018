@@ -1,5 +1,9 @@
 Math.TAU = Math.PI * 2;
 
+Number.prototype.floorTo = function(e) {
+    return Math.floor(this / e) * e;
+};
+
 function getAng(x, y) {
     return Math.atan2(y, x);
 }

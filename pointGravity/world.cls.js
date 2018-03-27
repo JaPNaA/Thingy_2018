@@ -12,6 +12,10 @@ function World() {
         x2: 0,
         y2: 0
     };
+    this.guideColor = "#333333";
+
+    this.gridSize = 48;
+    this.gridColor = "#aaaaaa";
 
     this.airResistance = 0.99999;
     this.speed = 1;
@@ -101,7 +105,7 @@ World.prototype.drawGuide = function () {
     if (!this.showGuide) return;
 
     X.lineWidth = 2;
-    X.strokeStyle = X.fillStyle = "#000000";
+    X.strokeStyle = X.fillStyle = this.guideColor;
 
     X.beginPath();
     X.moveTo(this.guide.x1, this.guide.y1);
@@ -114,8 +118,30 @@ World.prototype.drawGuide = function () {
 };
 
 World.prototype.drawGrid = function () {
-    X.fillStyle = "#F00";
-    X.fillRect(0, 0, 10, 10);
+    X.fillStyle = X.strokeStyle = this.gridColor;
+    X.lineWidth = 1;
+
+    var w = innerWidth,
+        h = innerHeight,
+        ox = this.camera.x.floorTo(this.gridSize),
+        oy = this.camera.y.floorTo(this.gridSize);
+
+    for (let i = 0; i < w; i += this.gridSize) {
+        let oxi = i - ox;
+
+        X.beginPath();
+        X.moveTo(oxi, -oy - this.gridSize);
+        X.lineTo(oxi, h - oy);
+        X.stroke();
+    }
+    for (let i = 0; i < h; i += this.gridSize) {
+        let oyi = i - oy;
+
+        X.beginPath();
+        X.moveTo(-ox - this.gridSize, oyi);
+        X.lineTo(w - ox, oyi);
+        X.stroke();
+    }
 };
 
 World.prototype.newPointGuide = function () {
