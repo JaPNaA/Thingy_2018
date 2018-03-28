@@ -52,6 +52,14 @@ function keyup(e) {
     key[e.keyCode] = false;
 }
 
+function wheel(e) {
+    if (e.deltaY < 0) {
+        world.scale(true, mouse.x, mouse.y);
+    } else {
+        world.scale(false, mouse.x, mouse.y);
+    }
+}
+
 function reqanf() {
     world.upd();
     world.draw(X);
@@ -68,6 +76,8 @@ addEventListener("mousemove", mousemove);
 
 addEventListener("keydown", keydown);
 addEventListener("keyup", keyup);
+
+addEventListener("wheel", wheel);
 
 addEventListener("contextmenu", e => e.preventDefault());
 reqanf();
