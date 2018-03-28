@@ -21,5 +21,5 @@ function getDist(x, y) {
 
 function getGravPow(x, y) {
     let d = getDist(x, y);
-    return 1 / d * d;
+    return 1 / (d * d);
 }

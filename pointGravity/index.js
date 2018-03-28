@@ -13,6 +13,17 @@ var world = new World(),
     },
     key = {};
 
+world.camera.tx = innerWidth / 2;
+world.camera.ty = innerHeight / 2;
+
+{
+    for (let y = -10; y < 10; y++) {
+        for (let x = -10; x < 10; x++) {
+            world.append(new Point(x * 32, y * 32));
+        }
+    }
+}
+
 function resize() {
     C.width = innerWidth;
     C.height = innerHeight;

@@ -7,9 +7,7 @@ function Point(x, y) {
     this.color = "#000000";
 
     this.radius = 3;
-    this.mass = 1;
-
-    this.gravStrength = 0.01;
+    this.mass = 0.01;
 }
 
 Point.prototype.draw = function (X) {
@@ -38,7 +36,7 @@ Point.prototype.upd = function (tt) {
             let ofx = i.x - this.x,
                 ofy = i.y - this.y,
                 d = getGravPow(ofx, ofy),
-                s = d * i.gravStrength * this.gravStrength,
+                s = d * i.mass,
                 {
                     x,
                     y
