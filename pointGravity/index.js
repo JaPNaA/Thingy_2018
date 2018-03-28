@@ -8,7 +8,8 @@ var world = new World(),
     mouse = {
         x: 0,
         y: 0,
-        down: false
+        down: false,
+        inside: true
     },
     key = {};
 
@@ -44,14 +45,37 @@ function mousemove(e) {
     world.setGuideEnd(mouse.x, mouse.y);
 }
 
+function mouseout(e) {
+    mouse.inside = false;
+    if (key[32]) {
+        C.requestPointerLock();
+    }
+}
+
+function mouseover(e) {
+    mouse.inside = true;
+}
+
 function keydown(e) {
     if (e.keyCode == 48 || e.keyCode == 96) {
         world.scaleReset();
+    }
+    if (e.keyCode == 32) {
+        if (!mouse.inside) {
+            C.requestPointerLock();
+        }
+        C.style.cursor = "move";
     }
     key[e.keyCode] = true;
 }
 
 function keyup(e) {
+    if (e.keyCode == 32) {
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+        C.style.cursor = "default";
+    }
     key[e.keyCode] = false;
 }
 
@@ -62,6 +86,10 @@ function wheel(e) {
     } else {
         world.scale(false, mouse.x, mouse.y);
     }
+}
+
+function contextmenu(e) {
+    e.preventDefault();
 }
 
 function reqanf() {
@@ -77,11 +105,13 @@ resize();
 addEventListener("mousedown", mousedown);
 addEventListener("mouseup", mouseup);
 addEventListener("mousemove", mousemove);
+addEventListener("mouseover", mouseover);
+addEventListener("mouseout", mouseout);
 
 addEventListener("keydown", keydown);
 addEventListener("keyup", keyup);
 
 addEventListener("wheel", wheel);
 
-addEventListener("contextmenu", e => e.preventDefault());
+addEventListener("contextmenu", contextmenu);
 reqanf();
