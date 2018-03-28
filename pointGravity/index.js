@@ -45,6 +45,9 @@ function mousemove(e) {
 }
 
 function keydown(e) {
+    if (e.keyCode == 48 || e.keyCode == 96) {
+        world.scaleReset();
+    }
     key[e.keyCode] = true;
 }
 
@@ -53,6 +56,7 @@ function keyup(e) {
 }
 
 function wheel(e) {
+    e.preventDefault();
     if (e.deltaY < 0) {
         world.scale(true, mouse.x, mouse.y);
     } else {

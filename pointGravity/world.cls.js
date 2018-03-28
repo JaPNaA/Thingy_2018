@@ -2,11 +2,16 @@ function World() {
     this.obs = [];
 
     this.camera = {
+        tx: 0,
+        ty: 0,
+        tscale: 1,
         x: 0,
         y: 0,
         scale: 1
     };
-    this.scaleStep = 1.1;
+    this.scaleStep = 1.15;
+
+    this.transSpeed = 50;
 
     this.showGuide = false;
     this.guide = {
@@ -55,6 +60,9 @@ World.prototype.upd = function () {
         }
     }
 
+    this.camera.x += (this.camera.tx - this.camera.x) / (this.transSpeed / t);
+    this.camera.y += (this.camera.ty - this.camera.y) / (this.transSpeed / t);
+    this.camera.scale += (this.camera.tscale - this.camera.scale) / (this.transSpeed / t);
 };
 
 World.prototype.draw = function (X) {
@@ -81,14 +89,20 @@ World.prototype.draw = function (X) {
     // static
     if (this.devm) {
         X.fillStyle = "#FF0000";
-        X.font = "16px Arial";
-        X.fillText(Math.round(this.fps), 8, 24);
+        X.font = "bold 16px Consolas";
+        X.fillText([
+            "fps: " + Math.round(this.fps),
+            "x: " + Math.floor(this.camera.x),
+            "y: " + Math.floor(this.camera.y),
+            "scale: " + this.camera.scale.toPrecision(3),
+            "obslen: " + this.obs.length
+        ].join(', '), 8, innerHeight - 8);
     }
 };
 
 World.prototype.cameraMove = function (x, y) {
-    this.camera.x += x;
-    this.camera.y += y;
+    this.camera.tx += x;
+    this.camera.ty += y;
 };
 
 World.prototype.setGuideStart = function (x, y) {
@@ -155,39 +169,48 @@ World.prototype.drawGrid = function () {
 
 World.prototype.newPointGuide = function () {
     var p = new Point(this.guide.x2 / this.camera.scale, this.guide.y2 / this.camera.scale),
-        x = this.guide.x1 - this.guide.x2,
-        y = this.guide.y1 - this.guide.y2;
+        x = (this.guide.x1 - this.guide.x2) / this.camera.scale,
+        y = (this.guide.y1 - this.guide.y2) / this.camera.scale;
 
-    p.vx = x * 0.005;
-    p.vy = y * 0.005;
+    if (x && y) {
+        p.vx = x * 0.005;
+        p.vy = y * 0.005;
+    }
 
     this.append(p);
 };
 
 World.prototype.scale = function (e, mx, my) {
-    var os = this.camera.scale,
-        x = (mx - this.camera.x) / this.camera.scale,
-        y = (my - this.camera.y) / this.camera.scale,
+    var os = this.camera.tscale,
+        x = (mx - this.camera.tx) / this.camera.tscale,
+        y = (my - this.camera.ty) / this.camera.tscale,
         ds;
 
     if (e) {
-        this.camera.scale *= this.scaleStep;
+        this.camera.tscale *= this.scaleStep;
     } else {
-        this.camera.scale /= this.scaleStep;
+        this.camera.tscale /= this.scaleStep;
     }
 
-    if (this.camera.scale < 0.05) {
-        this.camera.scale = 0.05;
-    } else if (this.camera.scale > 100) {
-        this.camera.scale = 100;
+    if (this.camera.tscale < 0.1) {
+        this.camera.tscale = 0.1;
+    } else if (this.camera.tscale > 20) {
+        this.camera.tscale = 20;
     }
 
-    ds = this.camera.scale - os;
+    ds = this.camera.tscale - os;
 
-    this.camera.x -= x * ds;
-    this.camera.y -= y * ds;
+    this.camera.tx -= x * ds;
+    this.camera.ty -= y * ds;
 };
 
 World.prototype.scaleReset = function () {
-    this.camera.scale = 1;
+    var os = this.camera.tscale;
+
+    this.camera.tscale = 1;
+
+    ds = this.camera.tscale - os;
+
+    this.camera.tx -= ((innerWidth / 2 - this.camera.tx) / os) * ds;
+    this.camera.ty -= ((innerHeight / 2 - this.camera.ty) / os) * ds;
 };
