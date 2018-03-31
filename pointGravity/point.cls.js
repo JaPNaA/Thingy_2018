@@ -6,11 +6,9 @@ function Point(x, y) {
 
     this.color = "#000000";
 
-    this.radius = Point.dRadius;
+    this.radius = 2;
     this.mass = 0.003;
 }
-
-Point.dRadius = 2;
 
 Point.prototype.draw = function (X) {
     X.fillStyle = this.color;

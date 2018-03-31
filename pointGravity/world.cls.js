@@ -29,6 +29,14 @@ function World() {
     this.speed = 1;
     this.trailStrength = 0.35;
 
+    this.default = {
+        point: {
+            mass: 0.003,
+            radius: 2,
+            color: "#000000"
+        }
+    };
+
     this.devm = true;
     this.fps = 0;
 
@@ -77,8 +85,8 @@ World.prototype.draw = function (X) {
     X.scale(this.camera.scale, this.camera.scale);
     // dynamic
 
-    this.drawGrid();
-    this.drawGuide();
+    this.drawGrid(X);
+    this.drawGuide(X);
 
     for (let i of this.obs) {
         i.draw(X);
@@ -89,31 +97,37 @@ World.prototype.draw = function (X) {
     // static
     if (this.devm) {
         X.fillStyle = "#FF0000";
-        X.font = "bold 16px Consolas";
+        X.font = "bold " + (16 * (window.devicePixelRatio || 1)) + "px Consolas";
         X.fillText([
             "fps: " + Math.round(this.fps),
             "x: " + Math.floor(this.camera.x),
             "y: " + Math.floor(this.camera.y),
             "scale: " + this.camera.scale.toPrecision(3),
             "obslen: " + this.obs.length
-        ].join(', '), 8, innerHeight - 8);
+        ].join(', '), 8, X.canvas.height - 8);
     }
 };
 
 World.prototype.cameraMove = function (x, y) {
-    this.camera.tx += x;
-    this.camera.ty += y;
+    let dpr = window.devicePixelRatio || 1;
+    this.camera.tx += x * dpr;
+    this.camera.ty += y * dpr;
 };
 
 World.prototype.setGuideStart = function (x, y) {
+    let dpr = window.devicePixelRatio || 1;
+    
     this.showGuide = true;
-    this.guide.x1 = x - this.camera.x;
-    this.guide.y1 = y - this.camera.y;
+    this.guide.x1 = x * dpr - this.camera.x;
+    this.guide.y1 = y * dpr - this.camera.y;
+    this.guide.x2 = x * dpr - this.camera.x;
+    this.guide.y2 = y * dpr - this.camera.y;
 };
 
 World.prototype.setGuideEnd = function (x, y) {
-    this.guide.x2 = x - this.camera.x;
-    this.guide.y2 = y - this.camera.y;
+    let dpr = window.devicePixelRatio || 1;    
+    this.guide.x2 = x * dpr - this.camera.x;
+    this.guide.y2 = y * dpr - this.camera.y;
 };
 
 World.prototype.hideGuide = function () {
@@ -135,17 +149,18 @@ World.prototype.drawGuide = function () {
     X.stroke();
 
     X.beginPath();
-    X.arc(x2sc, y2sc, Point.dRadius, 0, Math.TAU);
+    X.fillStyle = this.default.point.color;
+    X.arc(x2sc, y2sc, this.default.point.radius, 0, Math.TAU);
     X.fill();
 };
 
-World.prototype.drawGrid = function () {
+World.prototype.drawGrid = function (X) {
     X.fillStyle = X.strokeStyle = this.gridColor;
     X.lineWidth = Math.min(this.camera.scale, 1);
 
     var gscl = this.gridSize * this.camera.scale,
-        w = innerWidth / this.camera.scale,
-        h = innerHeight / this.camera.scale,
+        w = X.canvas.width / this.camera.scale,
+        h = X.canvas.height / this.camera.scale,
         ox = this.camera.x.floorTo(gscl) / this.camera.scale,
         oy = this.camera.y.floorTo(gscl) / this.camera.scale;
 
@@ -177,13 +192,18 @@ World.prototype.newPointGuide = function () {
         p.vy = y * 0.005;
     }
 
+    p.mass = this.default.point.mass;
+    p.radius = this.default.point.radius;
+    p.color = this.default.point.color;
+
     this.append(p);
 };
 
 World.prototype.scale = function (e, mx, my) {
     var os = this.camera.tscale,
-        x = (mx - this.camera.tx) / this.camera.tscale,
-        y = (my - this.camera.ty) / this.camera.tscale,
+        dpr = window.devicePixelRatio || 1,
+        x = (mx * dpr - this.camera.tx) / this.camera.tscale,
+        y = (my * dpr - this.camera.ty) / this.camera.tscale,
         ds;
 
     if (typeof e == "number") {
@@ -211,12 +231,15 @@ World.prototype.scale = function (e, mx, my) {
 };
 
 World.prototype.scaleReset = function () {
-    var os = this.camera.tscale;
+    var os = this.camera.tscale,
+        dpr = window.devicePixelRatio,
+        w = innerWidth * dpr,
+        h = innerHeight * dpr;
 
     this.camera.tscale = 1;
 
     ds = this.camera.tscale - os;
 
-    this.camera.tx -= ((innerWidth / 2 - this.camera.tx) / os) * ds;
-    this.camera.ty -= ((innerHeight / 2 - this.camera.ty) / os) * ds;
+    this.camera.tx -= ((w / 2 - this.camera.tx) / os) * ds;
+    this.camera.ty -= ((h / 2 - this.camera.ty) / os) * ds;
 };

@@ -5,6 +5,7 @@ C.width = 1280;
 C.height = 720;
 
 var world = new World(),
+    ui = new Ui(),
     mouse = {
         x: 0,
         y: 0,
@@ -14,24 +15,18 @@ var world = new World(),
     focused = true,
     ignmouse = false,
     key = {};
-    
-{
-    world.camera.tx = innerWidth / 2;
-    world.camera.ty = innerHeight / 2;
-    for (let y = -10; y < 10; y++) {
-        for (let x = -10; x < 10; x++) {
-            world.append(new Point(x * 32, y * 32));
-        }
-    }
-}
 
 function resize() {
+    var dpr = window.devicePixelRatio || 1,
+        w = innerWidth * dpr,
+        h = innerHeight * dpr;
+
     focused = false;
     setTimeout(() => focused = true, 50);
-    world.scale(innerWidth / C.width, innerHeight / C.height);
+    world.scale(w / C.width, h / C.height);
 
-    C.width = innerWidth;
-    C.height = innerHeight;
+    C.width = w;
+    C.height = h;
 }
 
 function mousedown(e) {
@@ -136,6 +131,7 @@ function wheel(e) {
 
 function contextmenu(e) {
     e.preventDefault();
+    ui.contextmenu();
 }
 
 function blur() {
@@ -150,8 +146,19 @@ function focus() {
 function reqanf() {
     world.upd();
     world.draw(X);
+    ui.draw(X);
 
     requestAnimationFrame(reqanf);
+}
+
+{
+    world.camera.tx = C.width / 2;
+    world.camera.ty = C.height / 2;
+    for (let y = -5; y < 5; y++) {
+        for (let x = -5; x < 5; x++) {
+            world.append(new Point(x * 32, y * 32));
+        }
+    }
 }
 
 addEventListener("resize", resize);
