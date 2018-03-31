@@ -7,7 +7,7 @@ function Point(x, y) {
     this.color = "#000000";
 
     this.radius = 2;
-    this.mass = 0.003;
+    this.mass = 0.001;
 }
 
 Point.prototype.draw = function (X) {

@@ -131,7 +131,7 @@ function wheel(e) {
 
 function contextmenu(e) {
     e.preventDefault();
-    ui.contextmenu();
+    ui.openContextmenu();
 }
 
 function blur() {

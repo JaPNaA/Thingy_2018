@@ -31,7 +31,7 @@ function World() {
 
     this.default = {
         point: {
-            mass: 0.003,
+            mass: 0.001,
             radius: 2,
             color: "#000000"
         }
