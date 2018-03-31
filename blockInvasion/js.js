@@ -30,7 +30,7 @@ function loadImage(e, f) {
 
 // https://gist.github.com/gre/1650294
 function easeInOutQuad(t) {
-    return t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
 
 class Ob {
@@ -869,6 +869,8 @@ class DeathPrompt extends Overlay {
         this.width = 1080;
         this.height = 1080;
 
+        this.obs = [];
+
         this.aniFrame = 0;
         this.aniTime = 750;
 
@@ -879,13 +881,66 @@ class DeathPrompt extends Overlay {
 
         this.bgcolor = "#434343EB";
         this.color = "#FFFFFF";
+
+        this.option = 0;
+        this.stopping = false;
+        this.done = false;
+
+        this.buttonOfy = 860;
+
+        {
+            let a = new Button(this.parent, 84, 1700, 424, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play agian");
+            a.addEventListener("click", () => this.playAgain());
+            this.obs.push(a);
+        } {
+            let a = new Button(this.parent, 572, 1700, 424, 64, 0, "48px 'Bree Serif'", "#FFFFFF", "Title Screen");
+            a.addEventListener("click", () => this.titleScreen());
+            this.obs.push(a);
+        }
+    }
+
+    close() {
+        this.stopping = true;
+        this.parent.closing = true;
+    }
+
+    playAgain() {
+        this.close();
+        this.option = 1;
+    }
+    titleScreen() {
+        this.close();
+        this.option = 2;
     }
 
     tick(tt) {
-        if (this.aniFrame < 1) {
-            this.aniFrame += tt / this.aniTime;
+        if (this.done) {
+            this.rem = true;
+            switch(this.option) {
+                case 1:
+                    this.parent.reset();
+                    break;
+                case 2:
+                    this.parent.parent.startScreen();
+                    break;
+                default:
+                    throw new Error("Unknown option");
+            }
+        }
+
+        if (this.stopping) {
+            if (this.aniFrame > 0) {
+                this.aniFrame -= tt / this.aniTime;
+            } else {
+                this.aniFrame = 0;
+                this.done = true;
+            }
         } else {
-            this.aniFrame = 1;
+            if (this.aniFrame < 1) {
+                this.aniFrame += tt / this.aniTime;
+            } else {
+                this.aniFrame = 1;
+            }
         }
 
         if (this.aniPlusFrame < 1) {
@@ -899,6 +954,9 @@ class DeathPrompt extends Overlay {
         }
 
         this.y = this.parent.height - easeInOutQuad(this.aniFrame) * this.height;
+        for (let i of this.obs) {
+            i.y = this.y + this.buttonOfy;
+        }
     }
 
     draw() {
@@ -941,8 +999,16 @@ class DeathPrompt extends Overlay {
         }
 
 
-        if (PD.highscore <= D.score) {
-            // you beat your highscore!
+        if (PD.highscore < D.score) {
+            X.font = "48px 'Bree Serif'";
+            X.fillText("YOU BEAT YOUR HIGHSCORE! ", 84, 696);
+            X.fillText("You scored " + (D.score - PD.highscore) + " more points than", 84, 748);
+            X.fillText("your highscore, " + PD.highscore, 84, 800);
+        } else if (PD.highscore == D.score) {
+            X.font = "48px 'Bree Serif'";
+            X.fillText("YOU BEAT YOur... oh wait ", 84, 696);
+            X.fillText("You scored your highscore, " + PD.highscore, 84, 748);
+            X.fillText("No new highscore for you.", 84, 800);
         } else {
             X.font = "48px 'Bree Serif'";
             X.fillText("Your only " + (PD.highscore - D.score) + " points from", 84, 696);
@@ -950,6 +1016,24 @@ class DeathPrompt extends Overlay {
         }
 
         X.restore();
+
+        for (let i of this.obs) {
+            i.draw();
+        }
+    }
+    event(t, e) {
+        for (let i of this.obs) {
+            i.event(t, e);
+        }
+    }
+    cursor() {
+        let r = "default";
+
+        for (let i of this.obs) {
+            r = i.cursor() || r;
+        }
+
+        return r;
     }
     afterMathDone() {
         this.aftmd = true;
@@ -1003,6 +1087,18 @@ class UIElement {
 }
 
 class Button extends UIElement {
+    /**
+     * Creates a new button on Screen 
+     * @param {!Screen} p parent element
+     * @param {!Number} x X coordinate
+     * @param {!Number} y Y coordinate
+     * @param {!Number} w width
+     * @param {!Number} h height
+     * @param {!Number} bg background color hue
+     * @param {!String} f font
+     * @param {!String} c color
+     * @param {!String} t text
+     */
     constructor(p, x, y, w, h, bg, f, c, t) {
         super(p, x, y, w, h);
 
@@ -1443,6 +1539,10 @@ class StartScreen extends Screen {
             let a = new Button(this, 300, 1030, 480, 64, 75, "48px 'Bree Serif'", "#FFFFFF", "Instructions");
             a.addEventListener("click", () => alert("To play the game, press the play button. :)"));
             this.obs.push(a);
+        } {
+            let a = new Button(this, 300, 1104, 480, 64, 45, "48px 'Bree Serif'", "#FFFFFF", "GitHub");
+            a.addEventListener("click", () => open("https://github.com/JaPNaA/Thingy_2018/tree/master/blockInvasion", "bigithub"));
+            this.obs.push(a);
         }
 
         this.resize();
@@ -1568,6 +1668,10 @@ class GameScreen extends Screen {
         };
         this.img = {};
 
+        this.aniFrame = 0;
+        this.aniTime = 250;
+        this.closing = false;
+
         this.setup();
     }
 
@@ -1683,6 +1787,9 @@ class GameScreen extends Screen {
         this.data = null;
         this.player = null;
         this.deathPrompt = null;
+        this.aniFrame = 0;
+        this.closing = false;
+
         this.then = performance.now();
         for (let i of this.obs) {
             i.length = 0;
@@ -1732,6 +1839,21 @@ class GameScreen extends Screen {
 
     tick(tt) {
         if (!this.started) return;
+
+        if (this.closing) {
+            if (this.aniFrame > 0) {
+                this.aniFrame -= tt / this.aniTime;
+            } else {
+                this.aniFrame = 0;
+            }
+        } else {
+            if (this.aniFrame < 1) {
+                this.aniFrame += tt / this.aniTime;
+            } else {
+                this.aniFrame = 1;
+            }
+        }
+
         this.eachObs(j => j.tick(tt));
 
         for (let i of this.obs) {
@@ -1779,6 +1901,7 @@ class GameScreen extends Screen {
 
     draw() {
         if (!this.started) return;
+        var X = this.X;
 
         if (!this.prevframefoc && this.focused) {
             this.then = performance.now();
@@ -1803,6 +1926,14 @@ class GameScreen extends Screen {
             this.parent.lastScreen.draw(true);
         }
 
+        if (this.aniFrame != 1) {
+            X.save();
+            X.fillStyle = "#000000";
+            X.globalAlpha = 1 - easeInOutQuad(this.aniFrame);
+            X.fillRect(0, 0, this.width, this.height);
+            X.restore();
+        }
+
         if (this.sim) return;
         this.reqanf();
     }
@@ -1816,7 +1947,7 @@ class P {
     constructor() {
         this._screen = null;
         this.lastScreen = null;
-        this.nextScreen = new GameScreen(this);
+        this.nextScreen = null;
         this.startScreen();
     }
     get screen() {
@@ -1856,10 +1987,11 @@ class P {
     }
     startScreen() {
         this.screen = new StartScreen(this);
+        this.nextScreen = new GameScreen(this);
     }
     gameScreen() {
         this.screen = new GameScreen(this);
     }
 }
 
-const p = new P();
+const p = new P(); // remove const p to hide access
