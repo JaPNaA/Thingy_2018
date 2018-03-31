@@ -942,7 +942,7 @@ class DeathPrompt extends Overlay {
 
 
         if (PD.highscore <= D.score) {
-
+            // you beat your highscore!
         } else {
             X.font = "48px 'Bree Serif'";
             X.fillText("Your only " + (PD.highscore - D.score) + " points from", 84, 696);

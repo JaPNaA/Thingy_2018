@@ -1,0 +1,12 @@
+Hold space - pan around
+Scroll wheel - zoom
+
+0 - reset zoom
+* Shift - select points
+* Backspace - remove selected points
+* Delete - remove selected points
+
+Click - place point
+Drag - point with velocity
+* Right click - toggle menu
+Middle click - reset zoom

@@ -25,7 +25,7 @@ function World() {
     this.gridSize = 48;
     this.gridColor = "#aaaaaa";
 
-    this.airResistance = 0.99999;
+    this.airResistance = 0.9999;
     this.speed = 1;
     this.trailStrength = 0.35;
 
@@ -135,13 +135,13 @@ World.prototype.drawGuide = function () {
     X.stroke();
 
     X.beginPath();
-    X.arc(x2sc, y2sc, 3, 0, Math.TAU);
+    X.arc(x2sc, y2sc, Point.dRadius, 0, Math.TAU);
     X.fill();
 };
 
 World.prototype.drawGrid = function () {
     X.fillStyle = X.strokeStyle = this.gridColor;
-    X.lineWidth = 1;
+    X.lineWidth = Math.min(this.camera.scale, 1);
 
     var gscl = this.gridSize * this.camera.scale,
         w = innerWidth / this.camera.scale,
@@ -186,10 +186,14 @@ World.prototype.scale = function (e, mx, my) {
         y = (my - this.camera.ty) / this.camera.tscale,
         ds;
 
-    if (e) {
-        this.camera.tscale *= this.scaleStep;
+    if (typeof e == "number") {
+        this.camera.tscale *= e;
     } else {
-        this.camera.tscale /= this.scaleStep;
+        if (e) {
+            this.camera.tscale *= this.scaleStep;
+        } else {
+            this.camera.tscale /= this.scaleStep;
+        }
     }
 
     if (this.camera.tscale < 0.1) {
@@ -198,10 +202,12 @@ World.prototype.scale = function (e, mx, my) {
         this.camera.tscale = 20;
     }
 
-    ds = this.camera.tscale - os;
+    if (mx && my) {
+        ds = this.camera.tscale - os;
 
-    this.camera.tx -= x * ds;
-    this.camera.ty -= y * ds;
+        this.camera.tx -= x * ds;
+        this.camera.ty -= y * ds;
+    }
 };
 
 World.prototype.scaleReset = function () {

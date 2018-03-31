@@ -6,9 +6,11 @@ function Point(x, y) {
 
     this.color = "#000000";
 
-    this.radius = 3;
-    this.mass = 0.01;
+    this.radius = Point.dRadius;
+    this.mass = 0.003;
 }
+
+Point.dRadius = 2;
 
 Point.prototype.draw = function (X) {
     X.fillStyle = this.color;
@@ -46,8 +48,8 @@ Point.prototype.upd = function (tt) {
             infy += y * s;
         }
 
-        this.vx += infx * 1;
-        this.vy += infy * 1;
+        this.vx += infx * tt;
+        this.vy += infy * tt;
     }
 };
 

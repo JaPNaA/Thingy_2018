@@ -11,12 +11,13 @@ var world = new World(),
         down: false,
         inside: true
     },
+    focused = true,
+    ignmouse = false,
     key = {};
-
-world.camera.tx = innerWidth / 2;
-world.camera.ty = innerHeight / 2;
-
+    
 {
+    world.camera.tx = innerWidth / 2;
+    world.camera.ty = innerHeight / 2;
     for (let y = -10; y < 10; y++) {
         for (let x = -10; x < 10; x++) {
             world.append(new Point(x * 32, y * 32));
@@ -25,25 +26,51 @@ world.camera.ty = innerHeight / 2;
 }
 
 function resize() {
+    focused = false;
+    setTimeout(() => focused = true, 50);
+    world.scale(innerWidth / C.width, innerHeight / C.height);
+
     C.width = innerWidth;
     C.height = innerHeight;
 }
 
 function mousedown(e) {
+    if (!focused) {
+        focused = true;
+        ignmouse = true;
+        return;
+    }
+    if (e.button == 0) {
+        world.setGuideStart(mouse.x, mouse.y);
+    } else if (e.button == 1) {
+        // middle click
+    } else if (e.button == 2) {
+        // right click
+    }
     mouse.x = e.clientX;
     mouse.y = e.clientY;
     mouse.down = true;
-    world.setGuideStart(mouse.x, mouse.y);
 }
 
 function mouseup(e) {
+    if (!focused || ignmouse) {
+        focused = true;
+        ignmouse = false;
+        return;
+    }
     mouse.x = e.clientX;
     mouse.y = e.clientY;
     mouse.down = false;
 
-    world.setGuideEnd(mouse.x, mouse.y);
-    world.newPointGuide();
-    world.hideGuide();
+    if (e.button == 0) {
+        world.setGuideEnd(mouse.x, mouse.y);
+        world.newPointGuide();
+        world.hideGuide();
+    } else if (e.button == 1) {
+        world.scaleReset();
+    } else if (e.button == 2) {
+        // right click
+    }
 }
 
 function mousemove(e) {
@@ -68,6 +95,10 @@ function mouseover(e) {
 }
 
 function keydown(e) {
+    if (!focused) {
+        focused = true;
+        return;
+    }
     if (e.keyCode == 48 || e.keyCode == 96) {
         world.scaleReset();
     }
@@ -81,6 +112,10 @@ function keydown(e) {
 }
 
 function keyup(e) {
+    if (!focused) {
+        focused = true;
+        return;
+    }
     if (e.keyCode == 32) {
         if (document.pointerLockElement) {
             document.exitPointerLock();
@@ -103,6 +138,15 @@ function contextmenu(e) {
     e.preventDefault();
 }
 
+function blur() {
+    key = {};
+    focused = false;
+}
+
+function focus() {
+    // focused = true;
+}
+
 function reqanf() {
     world.upd();
     world.draw(X);
@@ -122,7 +166,9 @@ addEventListener("mouseout", mouseout);
 addEventListener("keydown", keydown);
 addEventListener("keyup", keyup);
 
+addEventListener("contextmenu", contextmenu);
 addEventListener("wheel", wheel);
 
-addEventListener("contextmenu", contextmenu);
+addEventListener("blur", blur);
+addEventListener("focus", focus);
 reqanf();
