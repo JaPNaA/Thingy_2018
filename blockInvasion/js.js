@@ -62,11 +62,13 @@ class Data {
         this.difficulty = 0;
         this.speed = isSim ? 1.2 : 1;
         this.bulletPow = 1;
-        
+
         this.timeAlive = 0;
         this.hitScore = 0;
         this.breakScore = 0;
         this.expScore = 0;
+
+        this.blocksDestroyed = 0;
 
         this.afterMath = {
             hitScore: 0,
@@ -176,7 +178,7 @@ class Data {
 
         this.timeElapsed += tt;
 
-        if(this.playerAlive) {
+        if (this.playerAlive) {
             this.timeAlive = this.timeElapsed;
         } else {
             if (!this.afterMath.done) {
@@ -219,12 +221,18 @@ class Data {
             this.afterMath.breakScore += e;
         }
     }
+    blocksDestroyedAdd(e) {
+        if (this.playerAlive) {
+            this.blocksDestroyed += e;
+        }
+    }
 }
 
 class PersistentData {
     constructor() {
         // get localstorage persistent data
         // stores highscores, time played, total score, etc
+        this.highscore = 0;
     }
 }
 
@@ -261,7 +269,7 @@ class Thing extends Ob {
 class Overlay extends Ob {
     constructor(g) {
         super(g, 3);
-        
+
         this.parent.obs[this.layer].push(this);
 
         this.x = 0;
@@ -352,6 +360,7 @@ class Block extends Thing {
                 } else {
                     this.parent.data.breakScoreAdd(Math.min(this.value, -1) * 100);
                 }
+                this.parent.data.blocksDestroyedAdd(1);
                 this.payloaded = true;
             }
 
@@ -362,7 +371,7 @@ class Block extends Thing {
         }
 
         if (
-            this.parent.data.playerAlive && 
+            this.parent.data.playerAlive &&
             this.y + this.height - this.margin > this.parent.height - this.parent.player.baseHeight
         ) {
             this.destroyed = true;
@@ -636,7 +645,7 @@ class Player extends Thing {
         let img = this.baseColor[this.lives - 1],
             af = Math.floor(this.aniframe) + 1,
             tr = this.aniframe % 1;
-        
+
         if (!img) return;
         let imgf = img[af % img.length],
             imgl = img[(af - 1) % img.length];
@@ -646,9 +655,9 @@ class Player extends Thing {
         X.save();
 
         X.imageSmoothingEnabled = false;
-        
+
         X.drawImage(
-            imgl, 
+            imgl,
             0, 0, imgl.width, imgl.height,
             0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight
         );
@@ -664,7 +673,7 @@ class Player extends Thing {
     }
     drawPlayer(X) {
         X.imageSmoothingEnabled = true;
-        
+
         var ofx = (this.x + this.width / 2) - this.reachOrigin.x,
             ofy = (this.y + this.height / 2) - this.reachOrigin.y;
         X.save();
@@ -759,7 +768,7 @@ class Player extends Thing {
             let k = this.parent.mouse,
                 x = this.x + this.width / 2,
                 y = this.y + this.height / 2,
-                ofx = k.x - x, 
+                ofx = k.x - x,
                 ofy = k.y - y;
 
             if (Math.abs(ofx) > Math.abs(ofy)) {
@@ -825,10 +834,11 @@ class Player extends Thing {
 class ScoreDisplay extends Overlay {
     constructor(p) {
         super(p);
-        
+
         this.data = this.parent.data;
     }
     draw() {
+        if (!this.parent.data.playerAlive) return;
         var X = this.parent.X;
 
         X.save();
@@ -845,23 +855,101 @@ class ScoreDisplay extends Overlay {
         if (!this.parent.data.playerAlive) {
             X.fillText(this.data.afterMathScore, 16, 1836);
         }
-        
+
         X.restore();
     }
 }
 
-class DeathPrompt extends Overlay{
+class DeathPrompt extends Overlay {
     constructor(p) {
         super(p);
 
-        this.aftmd = false;
-    }
-    draw() {
-        var X = this.parent.X;
+        this.x = 0;
+        this.y = 0;
+        this.width = 1080;
+        this.height = 1080;
 
-        X.font = 'bold 64px Arial';
-        X.fillStyle = '#888888';
-        X.fillText("You died", 64, 940);
+        this.aniFrame = 0;
+        this.aniTime = 750;
+
+        this.aniPlusFrame = 0;
+        this.aniPlusTime = 2000;
+
+        this.aftmd = false;
+
+        this.bgcolor = "#434343EB";
+        this.color = "#FFFFFF";
+    }
+
+    tick(tt) {
+        if (this.aniFrame < 1) {
+            this.aniFrame += tt / this.aniTime;
+        } else {
+            this.aniFrame = 1;
+        }
+
+        if (this.aniPlusFrame < 1) {
+            this.aniPlusFrame += tt / this.aniPlusTime;
+        } else {
+            if (this.parent.data.afterMath.done) {
+                this.aniPlusFrame = 1;
+            } else {
+                this.aniPlusFrame = 0;
+            }
+        }
+
+        this.y = this.parent.height - easeInOutQuad(this.aniFrame) * this.height;
+    }
+
+    draw() {
+        var X = this.parent.X,
+            D = this.parent.data,
+            PD = this.parent.persistentData;
+
+        X.save();
+        X.translate(this.x, this.y);
+
+        X.fillStyle = this.bgcolor;
+        X.fillRect(0, 0, this.width, this.height);
+
+        X.fillStyle = this.color;
+        X.font = "128px 'Russo One'";
+        X.fillText("You died", 84, 168);
+
+        X.font = "52px 'Bree Serif'";
+        X.fillText("You survived for " + Math.floor(D.timeAlive) / 1000 + " seconds", 84, 256);
+        X.fillText("You destroyed " + D.blocksDestroyed + " blocks", 84, 320);
+        X.fillText("You hit blocks " + D.hitScore + " times", 84, 384);
+        X.fillText("Your bullets exploded " + D.expScore + " times", 84, 448);
+
+        X.font = "64px 'Bree Serif'";
+        X.fillText("You scored " + D.score + " points!", 84, 536); {
+            let txt = "Aftermath score: " + D.afterMathScore,
+                w = X.measureText(txt).width,
+                pa = X.globalAlpha;
+            X.fillText(txt, 84, 608);
+
+            if (this.aniPlusFrame < 0.5) {
+                X.globalAlpha = easeInOutQuad(this.aniPlusFrame / 0.5);
+            } else {
+                X.globalAlpha = easeInOutQuad(1 - (this.aniPlusFrame - 0.5) / 0.5);
+            }
+
+            X.fillText("+", 84 + w, 608);
+
+            X.globalAlpha = pa;
+        }
+
+
+        if (PD.highscore <= D.score) {
+
+        } else {
+            X.font = "48px 'Bree Serif'";
+            X.fillText("Your only " + (PD.highscore - D.score) + " points from", 84, 696);
+            X.fillText("your highscore, " + PD.highscore, 84, 748);
+        }
+
+        X.restore();
     }
     afterMathDone() {
         this.aftmd = true;
@@ -973,7 +1061,7 @@ class Button extends UIElement {
             s = 1 - easeInOutQuad(this.ani.scale) * 0.035,
             w = 0;
         this.then = now;
-        
+
         this.tick(tt);
 
         X.save();
@@ -1141,8 +1229,8 @@ class Screen {
         }
 
         if (h * this.ratio < w) {
-            this.canvas.classList.add("h");
-            document.body.classList.add("h");
+            this.canvas.classList.remove("h");
+            document.body.classList.remove("h");
 
             this.canvas.width = h * this.ratio * dpr;
             this.canvas.height = h * dpr;
@@ -1153,8 +1241,8 @@ class Screen {
             this.offsetY = 0;
             this.canvas.style.top = 0;
         } else {
-            this.canvas.classList.remove("h");
-            document.body.classList.remove("h");
+            this.canvas.classList.add("h");
+            document.body.classList.add("h");
 
             this.canvas.width = w * dpr;
             this.canvas.height = w / this.ratio * dpr;
@@ -1197,7 +1285,7 @@ class Screen {
 
         this.usingMouse = true;
 
-        
+
         this.eachObs(e => {
             cur = e.cursor() || cur;
         });
@@ -1341,7 +1429,7 @@ class StartScreen extends Screen {
         addEventListener("mouseup", this.listenerFuncs.mouseup, passiveFalse);
         addEventListener("mousedown", this.listenerFuncs.mousedown, passiveFalse);
         addEventListener("mousemove", this.listenerFuncs.mousemove, passiveFalse);
-        
+
         addEventListener("touchend", this.listenerFuncs.touchend, passiveFalse);
         addEventListener("touchstart", this.listenerFuncs.touchstart, passiveFalse);
         addEventListener("touchmove", this.listenerFuncs.touchmove, passiveFalse);
@@ -1351,8 +1439,7 @@ class StartScreen extends Screen {
             let a = new Button(this, 300, 956, 480, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play");
             a.addEventListener("click", () => this.play());
             this.obs.push(a);
-        }
-        {
+        } {
             let a = new Button(this, 300, 1030, 480, 64, 75, "48px 'Bree Serif'", "#FFFFFF", "Instructions");
             a.addEventListener("click", () => alert("To play the game, press the play button. :)"));
             this.obs.push(a);
@@ -1419,8 +1506,8 @@ class StartScreen extends Screen {
         X.shadowColor = "#000000";
         X.shadowOffsetX = 4;
         X.shadowOffsetY = 4;
-        X.fillStyle = this.color; 
-        
+        X.fillStyle = this.color;
+
         {
             X.font = "124px 'Russo One'";
             let txt = "Block Invasion",
@@ -1474,7 +1561,7 @@ class GameScreen extends Screen {
                 player: ["imgs/player0.png"],
                 base: [
                     ["imgs/base0_0.png", "imgs/base0_1.png", "imgs/base0_2.png", "imgs/base0_3.png", "imgs/base0_4.png", "imgs/base0_5.png"],
-                    ["imgs/base1_0.png", "imgs/base1_1.png", "imgs/base1_2.png", "imgs/base1_3.png", "imgs/base1_4.png", "imgs/base1_5.png"], 
+                    ["imgs/base1_0.png", "imgs/base1_1.png", "imgs/base1_2.png", "imgs/base1_3.png", "imgs/base1_4.png", "imgs/base1_5.png"],
                     ["imgs/base2.png"]
                 ]
             }
@@ -1603,7 +1690,7 @@ class GameScreen extends Screen {
 
         this.data = new Data(this, this.sim);
         new Background(this);
-        
+
         if (this.sim) {
             this.player = {
                 lives: 0
