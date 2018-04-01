@@ -765,36 +765,30 @@ class Player extends Thing {
             s = this.speed;
 
         if (this.parent.usingMouse) {
-            let k = this.parent.mouse,
+            let mx = this.parent.mouse.x,
+                my = this.parent.mouse.y,
+                mofx = mx - this.reachOrigin.x,
+                mofy = my - this.reachOrigin.y,
+                mang = Math.atan2(mofy, mofx),
+                mdist = Math.min(this.baseReach, 
+                    Math.sqrt(mofx * mofx + mofy * mofy)
+                ),
+                tx = Math.cos(mang) * mdist + this.reachOrigin.x,
+                ty = Math.sin(mang) * mdist + this.reachOrigin.y,
                 x = this.x + this.width / 2,
-                y = this.y + this.height / 2,
-                ofx = k.x - x,
-                ofy = k.y - y;
+                y = this.y + this.height / 2;
 
-            if (Math.abs(ofx) > Math.abs(ofy)) {
-                if (ofx > 0) {
-                    ax += 1;
-                } else {
-                    ax -= 1;
-                }
-            } else {
-                if (ofy > 0) {
-                    ay += 1;
-                } else {
-                    ay -= 1;
-                }
+            if (x + this.width / 5 < tx) {
+                ax += 1;
+            } else if (x - this.width / 5 > tx) {
+                ax -= 1;
+            }
+            if (y + this.height / 5 < ty) {
+                ay += 1;
+            } else if (y - this.height / 5 > ty) {
+                ay -= 1;
             }
 
-            // if (x > k.x + this.width / 4) {
-            //     ax -= 1;
-            // } else if (x < k.x - this.width / 4) {
-            //     ax += 1;
-            // }
-            // if (y > k.y + this.height / 4) {
-            //     ay -= 1;
-            // } else if (y < k.y - this.height / 4) {
-            //     ay += 1;
-            // }
         } else {
             let k = this.parent.key;
             if (k[65] || k[37])
@@ -916,7 +910,7 @@ class DeathPrompt extends Overlay {
     tick(tt) {
         if (this.done) {
             this.rem = true;
-            switch(this.option) {
+            switch (this.option) {
                 case 1:
                     this.parent.reset();
                     break;
@@ -1212,12 +1206,14 @@ class Button extends UIElement {
     }
 
     touchstart(e) {
+        this.mousemove();
         this.mousedown();
     }
     touchmove(e) {
         this.mousemove();
     }
     touchend(e) {
+        this.mousemove();
         this.mouseup();
         this.hover = false;
     }
