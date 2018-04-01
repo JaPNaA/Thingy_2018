@@ -1,0 +1,23 @@
+{
+    "short_name": "Block Invasion",
+    "name": "Block Invasion",
+    "icons": [{
+        "src": "favicon.png",
+        "type": "image/png",
+        "sizes": "128x128"
+    }, {
+        "src": "favicon.ico",
+        "type": "image/x-icon",
+        "sizes": "128x128"
+    },
+    {
+        "src": "faviconW512.png",
+        "type": "image/png",
+        "sizes": "512x512"
+    }],
+    "start_url": "index.html",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "display": "standalone",
+    "orientation": "portrait"
+}
