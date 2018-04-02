@@ -94,7 +94,7 @@ class Data {
             },
             powUp: {
                 time: 7500,
-                now: 10000,
+                now: 30000,
                 drpd: 1,
                 e: 0
             },
@@ -121,6 +121,7 @@ class Data {
             color: "#FFEA0F",
             payload: () => {
                 this.parent.player.powUp.bullet += 3000;
+                this.parent.player.maxBullets += randInt(2);
             }
         }, {
             color: "#3633f1",
@@ -384,7 +385,9 @@ class Block extends Thing {
                     }
                     this.payloaded = true;
                 } else {
-                    this.parent.data.breakScoreAdd(Math.min(this.value, -1) * 100);
+                    if (this.parent.player.powUp.invincibility <= 0 && this.parent.player.lives > 0) {
+                        this.parent.data.breakScoreAdd(Math.min(this.value, -1) * 100);
+                    }
                 }
                 this.parent.data.blocksDestroyedAdd(1);
                 this.payloaded = true;
@@ -752,6 +755,8 @@ class Player extends Thing {
         };
 
         this.aniframe = 0;
+        this.aniInvinFrame = 0;
+        this.aniInvinTime = 250;
     }
 
     get lives() {
@@ -826,14 +831,14 @@ class Player extends Thing {
 
         X.imageSmoothingEnabled = false;
 
-        X.globalAlpha = 1 - easeInOutQuad(tr);
+        X.globalAlpha = (1 - easeInOutQuad(tr)) * this.aniInvinFrame;
         X.drawImage(
             imgl,
             0, 0, imgl.width, imgl.height,
             0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight
         );
 
-        X.globalAlpha = easeInOutQuad(tr);
+        X.globalAlpha = easeInOutQuad(tr) * this.aniInvinFrame;
         X.drawImage(
             imgf,
             0, 0, imgf.width, imgf.height,
@@ -932,9 +937,18 @@ class Player extends Thing {
         }
 
         this.aniframe += tt / 250;
+        if (this.powUp.invincibility > 5000) {
+            this.aniInvinFrame += tt / this.aniInvinTime;
+            if (this.aniInvinFrame > 1) {
+                this.aniInvinFrame = 1;
+            }
+        } else {
+            this.aniInvinFrame = this.powUp.invincibility / 5000;
+        }
+
         for (let i in this.powUp) {
             if (this.powUp[i] > 0) {
-                this.powUp[i] -= tt;
+                this.powUp[i] -= tt * this.parent.data.speed;
             } else {
                 this.powUp[i] = 0;
             }
