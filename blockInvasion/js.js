@@ -88,8 +88,14 @@ class Data {
             },
             bullet: {
                 time: 1000,
-                min: 32,
+                min: 8,
                 now: 0,
+                e: 0
+            },
+            powUp: {
+                time: 7500,
+                now: 10000,
+                drpd: 1,
                 e: 0
             },
             diffUp: {
@@ -110,6 +116,26 @@ class Data {
                 e: 0
             }
         };
+
+        this.powUpTypes = [{
+            color: "#FFEA0F",
+            payload: () => {
+                this.parent.player.powUp.bullet += 3000;
+            }
+        }, {
+            color: "#3633f1",
+            payload: () => {
+                this.parent.player.powUp.invincibility += 12500;
+            }
+        }, {
+            color: "#d81c1c",
+            payload: () => {
+                for (let i of this.parent.obs[1]) {
+                    if (i instanceof Block)
+                        i.value = 0;
+                }
+            }
+        }];
 
         this._blockSpeed = 1;
         this._bulletSpeed = 1;
@@ -280,7 +306,7 @@ class Overlay extends Ob {
 }
 
 class Block extends Thing {
-    constructor(p, x, yo, c) {
+    constructor(p, x, yo) {
         super(p, 1);
 
         this.width = Block.size;
@@ -348,10 +374,10 @@ class Block extends Thing {
             if (!this.payloaded) {
                 if (this.playerDestroyed) {
                     if (this.reallySpecial) {
-                        this.parent.data.bulletPow += 0.5;
+                        this.parent.data.bulletPow += 1;
                         this.parent.data.breakScoreAdd(4);
                     } else if (this.special) {
-                        this.parent.data.cooldown.bullet.time *= 0.95;
+                        this.parent.data.cooldown.bullet.time *= 0.925;
                         this.parent.data.breakScoreAdd(16);
                     } else {
                         this.parent.data.breakScoreAdd(1);
@@ -444,16 +470,83 @@ class Block extends Thing {
         X.fillText(tv, -tw / 2, -2);
         X.restore();
     }
-    remove() {
-        if (this.rem) {
-            let o = this.parent.obs[this.layer];
-            o.splice(o.indexOf(this), 1);
+}
+
+class PowUp extends Thing {
+    constructor(p) {
+        super(p, 1);
+
+        this.type = this.parent.data.powUpTypes[randInt(this.parent.data.powUpTypes.length)];
+
+        this.radius = Block.size / 2;
+        this.margin = Block.size / 4;
+
+        this.x = this.radius + Math.random() * (this.parent.width - this.radius * 2);
+        this.y = -this.radius * 2;
+        this.vy = Block.vy;
+
+        this.payloaded = false;
+
+        this.destroyed = false;
+        this.destroyedAniTime = 350;
+        this.destroyedAniStep = 1;
+
+        this.color = this.type.color;
+
+        let tx = Math.floor(this.x),
+            ty = Math.floor(this.y);
+
+        for (let i of this.parent.obs[this.layer]) {
+            if (i !== this && tx == Math.floor(i.x) && ty == Math.floor(i.y)) {
+                i.rem = true;
+            }
         }
+    }
+
+    get speed() {
+        return this.parent.data.blockSpeed;
+    }
+
+    tick(tt) {
+        this.y += this.vy * this.speed * tt;
+        if (this.destroyed) {
+            this.destroyedAniStep -= tt / this.destroyedAniTime;
+
+            if (!this.payloaded) {
+                this.type.payload();
+                this.payloaded = true;
+            }
+
+            if (this.destroyedAniStep < 0) {
+                this.rem = true;
+            }
+            return;
+        }
+
+        if (this.y > this.parent.height) {
+            this.rem = true;
+        }
+    }
+    draw() {
+        var X = this.parent.X,
+            tr = this.destroyedAniStep * this.destroyedAniStep * this.destroyedAniStep,
+            sc = 2 - tr;
+        X.save();
+        X.translate(this.x, this.y);
+        X.scale(sc, sc);
+        X.globalAlpha = tr;
+
+        X.beginPath();
+        X.fillStyle = this.color;
+        X.arc(0, 0, this.radius - this.margin, 0, Math.TAU);
+        X.fill();
+
+        X.restore();
     }
 }
 
 class Bullet extends Thing {
-    constructor(p, x, y, a, d, s) {
+    constructor(p, x, y, a, d, s, pw) {
         super(p, 1);
 
         this.ang = a;
@@ -461,16 +554,25 @@ class Bullet extends Thing {
         this.y = y;
         this.spd = d;
 
-        this.isSub = !!s;
-        this.ttl = 2018 * this.speed; // It's actually 2016... as of March 6, 2018
+        this.sub = s;
+        this.powerful = !!pw;
+        this.ttl = 2018 * (Math.log2(this.speed) + 1); // It's actually 2016... as of March 6, 2018
 
-        this.radius = 12;
+        if (this.sub) {
+            this.ttl *= this.sub;
+        }
 
         // *INTENTIONAL: Bullets not affected by speed
         this.vx = Math.cos(this.ang) * d;
         this.vy = Math.sin(this.ang) * d;
 
-        this.color = "#00BEF3";
+        if (this.powerful) {
+            this.color = "#FFEA0F";
+            this.radius = 16;
+        } else {
+            this.color = "#00BEF3";
+            this.radius = 12;
+        }
         this.blocksHit = 0;
     }
 
@@ -515,50 +617,76 @@ class Bullet extends Thing {
             r = this.radius;
 
         for (let i of this.parent.obs[this.layer]) {
-            if (!(i instanceof Block) || i.destroyed) continue;
-            let dx = (x + r) - (i.x + i.width / 2),
-                dy = (y + r) - (i.y + i.height / 2),
-                w = r + i.width / 2,
-                h = r + i.height / 2,
-                cw = w * dy,
-                ch = h * dx;
+            if (i instanceof Block && !i.destroyed) {
+                let dx = (x + r) - (i.x + i.width / 2),
+                    dy = (y + r) - (i.y + i.height / 2),
+                    w = r + i.width / 2,
+                    h = r + i.height / 2,
+                    cw = w * dy,
+                    ch = h * dx;
 
-            if (Math.abs(dx) <= w && Math.abs(dy) <= h) {
-                if (cw > ch) {
-                    if (cw > -ch) {
-                        // bottom
-                        this.vy = Math.abs(this.vy);
-                        this.y = i.y + i.height + r * 2;
+                if (Math.abs(dx) <= w && Math.abs(dy) <= h) {
+                    if (cw > ch) {
+                        if (cw > -ch) {
+                            // bottom
+                            this.vy = Math.abs(this.vy);
+                            this.y = i.y + i.height + r * 2;
+                        } else {
+                            // left
+                            this.vx = -Math.abs(this.vx);
+                            this.x = i.x - r * 2;
+                        }
                     } else {
-                        // left
-                        this.vx = -Math.abs(this.vx);
-                        this.x = i.x - r * 2;
+                        if (cw > -ch) {
+                            // right
+                            this.vx = Math.abs(this.vx);
+                            this.x = i.x + i.width + r * 2;
+                        } else {
+                            // top
+                            this.vy = -Math.abs(this.vy);
+                            this.y = i.y - r * 2;
+                        }
                     }
-                } else {
-                    if (cw > -ch) {
-                        // right
-                        this.vx = Math.abs(this.vx);
-                        this.x = i.x + i.width + r * 2;
+                    this.blocksHit++;
+
+                    if (this.blocksHit > 5) {
+                        this.explode(4);
+                    }
+
+                    if (this.powerful) {
+                        i.value -= i.value;
                     } else {
-                        // top
-                        this.vy = -Math.abs(this.vy);
-                        this.y = i.y - r * 2;
+                        i.value -= this.parent.data.bulletPow;
                     }
+                    this.parent.data.hitScoreAdd(1);
+                    if (i.value <= 0) i.playerDestroyed = true;
                 }
-                this.blocksHit++;
+            } else if (i instanceof PowUp && !i.destroyed) {
+                let ofx = this.x - i.x,
+                    ofy = this.y - i.y,
+                    dist = Math.sqrt(ofx * ofx + ofy * ofy);
 
-                if (this.blocksHit > 5) {
-                    this.rem = true;
-                    for (let i = 0; i < 4; i++) {
-                        new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * i * 0.25, this.spd, true);
-                        this.parent.data.expScoreAdd(1);
-                    }
+                if (i.radius + this.radius > dist) {
+                    i.destroyed = true;
+                    this.explode(7, true);
                 }
-
-                i.value -= this.parent.data.bulletPow;
-                this.parent.data.hitScoreAdd(1);
-                if (i.value <= 0) i.playerDestroyed = true;
             }
+        }
+    }
+    explode(e, pw) {
+        let f = 1 / e;
+        this.rem = true;
+        if (this.powerful) {
+            for (let i of this.parent.obs[1]) {
+                if (i instanceof Block) {
+                    i.value = 0;
+                    i.playerDestroyed = true;
+                }
+            }
+        }
+        for (let i = 0; i < e; i++) {
+            new Bullet(this.parent, this.x, this.y, this.ang + Math.TAU * i * f, this.spd, (this.sub * 0.85) || 1, pw || this.powerful);
+            this.parent.data.expScoreAdd(1);
         }
     }
 
@@ -569,7 +697,7 @@ class Bullet extends Thing {
         this.boundaries();
         this.collide();
 
-        if (this.isSub) {
+        if (this.sub) {
             this.ttl -= tt;
             if (this.ttl < 0) {
                 this.rem = true;
@@ -580,7 +708,7 @@ class Bullet extends Thing {
         if (this.rem) {
             let o = this.parent.obs[this.layer];
             o.splice(o.indexOf(this), 1);
-            if (!this.isSub)
+            if (!this.sub)
                 this.parent.player.bullets--;
         }
     }
@@ -618,6 +746,11 @@ class Player extends Thing {
         this.bullets = 0;
         this._lives = 3;
 
+        this.powUp = {
+            bullet: 0,
+            invincibility: 0
+        };
+
         this.aniframe = 0;
     }
 
@@ -625,6 +758,7 @@ class Player extends Thing {
         return this._lives;
     }
     set lives(e) {
+        if (this.powUp.invincibility > 0) return;
         if (e < this._lives) {
             // add animation of player malfunctioning electric
         } else {
@@ -668,6 +802,45 @@ class Player extends Thing {
             0, 0, imgf.width, imgf.height,
             0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight
         );
+
+        X.globalAlpha = 1;
+
+        X.restore();
+        if (this.powUp.invincibility > 0) {
+            this.drawInvincibility(X);
+        }
+    }
+    drawInvincibility(X) {
+        let fr = this.aniframe * 0.3782,
+            img = this.parent.img.pow,
+            af = Math.floor(fr) + 1,
+            tr = fr % 1;
+
+        if (!img) return;
+        let imgf = img[af % img.length],
+            imgl = img[(af - 1) % img.length];
+
+        if (!imgf) return;
+
+        X.save();
+
+        X.imageSmoothingEnabled = false;
+
+        X.globalAlpha = 1 - easeInOutQuad(tr);
+        X.drawImage(
+            imgl,
+            0, 0, imgl.width, imgl.height,
+            0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight
+        );
+
+        X.globalAlpha = easeInOutQuad(tr);
+        X.drawImage(
+            imgf,
+            0, 0, imgf.width, imgf.height,
+            0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight
+        );
+
+        X.globalAlpha = 1;
 
         X.restore();
     }
@@ -745,11 +918,11 @@ class Player extends Thing {
             this.x + this.width / 2,
             this.y + this.height / 2,
             Math.atan2(ofy, ofx),
-            dist / this.baseReach * 0.55 + 0.8
+            dist / this.baseReach * 0.55 + 0.8,
+            false,
+            this.powUp.bullet > 0
         );
         this.bullets++;
-
-        // add vfx of recoil
     }
 
     tick(tt) {
@@ -759,6 +932,13 @@ class Player extends Thing {
         }
 
         this.aniframe += tt / 250;
+        for (let i in this.powUp) {
+            if (this.powUp[i] > 0) {
+                this.powUp[i] -= tt;
+            } else {
+                this.powUp[i] = 0;
+            }
+        }
 
         var ax = 0,
             ay = 0,
@@ -770,7 +950,7 @@ class Player extends Thing {
                 mofx = mx - this.reachOrigin.x,
                 mofy = my - this.reachOrigin.y,
                 mang = Math.atan2(mofy, mofx),
-                mdist = Math.min(this.baseReach, 
+                mdist = Math.min(this.baseReach,
                     Math.sqrt(mofx * mofx + mofy * mofy)
                 ),
                 tx = Math.cos(mang) * mdist + this.reachOrigin.x,
@@ -1273,7 +1453,8 @@ class Screen {
 
         this.lastSize = {
             w: 0,
-            h: 0
+            h: 0,
+            has: false
         };
         this.resizing = false;
         this.then = 0;
@@ -1309,14 +1490,14 @@ class Screen {
     start() {}
     stop() {}
     resize() {
-        if (this.resizing) return;
+        if (this.resizing || !this.started && this.lastSize.has) return;
         var dpr = window.devicePixelRatio || 1,
             w = window.innerWidth,
             h = window.innerHeight;
 
-        if (w == this.lastSize.w && h == this.lastSize.h) {
-            this.resizeLoop();
+        if (w == this.lastSize.w && h == this.lastSize.h && this.lastSize.has) {
             this.resizing = true;
+            this.resizeLoop();
             return;
         }
 
@@ -1346,14 +1527,17 @@ class Screen {
             this.canvas.style.top = this.offsetY + "px";
         }
 
+        this.lastSize.w = window.innerWidth;
+        this.lastSize.h = window.innerHeight;
+        this.lastSize.has = true;
+
+        this.X.resetTransform();
         this.scaleX = this.canvas.width / this.width;
         this.scaleY = this.canvas.height / this.height;
         this.X.scale(this.scaleX, this.scaleY);
     }
     resizeLoop() { // because ios is bad
-        var w = window.innerWidth,
-            h = window.innerHeight;
-        if (w == this.lastSize.w && h == this.lastSize.h) {
+        if (window.innerWidth == this.lastSize.w && window.innerHeight == this.lastSize.h) {
             requestAnimationFrame(() => this.resizeLoop());
         } else {
             this.resizing = false;
@@ -1466,6 +1650,13 @@ class Screen {
     focus(e) {
         this.focused = true;
         this.prevframefoc = false;
+    }
+    visibilitychange(e) {
+        if (document.hidden || document.webkitHidden) {
+            this.blur();
+        } else {
+            this.focus();
+        }
     }
 }
 
@@ -1659,7 +1850,8 @@ class GameScreen extends Screen {
                     ["imgs/base0_0.png", "imgs/base0_1.png", "imgs/base0_2.png", "imgs/base0_3.png", "imgs/base0_4.png", "imgs/base0_5.png"],
                     ["imgs/base1_0.png", "imgs/base1_1.png", "imgs/base1_2.png", "imgs/base1_3.png", "imgs/base1_4.png", "imgs/base1_5.png"],
                     ["imgs/base2.png"]
-                ]
+                ],
+                pow: ["imgs/pow_0.png", "imgs/pow_1.png", "imgs/pow_2.png", "imgs/pow_3.png"]
             }
         };
         this.img = {};
@@ -1723,7 +1915,6 @@ class GameScreen extends Screen {
             passive: false
         };
 
-        this.resize();
         this.preload();
 
         if (!this.sim) {
@@ -1740,6 +1931,7 @@ class GameScreen extends Screen {
                 keyup: e => this.keyup(e),
                 blur: e => this.blur(e),
                 focus: e => this.focus(e),
+                visibilitychange: e => this.visibilitychange(e),
                 deviceorientation: e => this.deviceorientation(e),
                 scroll: function (e) {
                     e.preventDefault();
@@ -1766,14 +1958,14 @@ class GameScreen extends Screen {
 
             addEventListener("contextmenu", listenerFuncs.contextmenu);
 
-            // TEMP! Uncomment
-            // addEventListener("deviceorientation", listenerFuncs.deviceorientation, {
-            //     passive: true
-            // });
+            addEventListener("deviceorientation", listenerFuncs.deviceorientation, {
+                passive: true
+            });
 
             addEventListener("scroll", listenerFuncs.scroll, true);
 
             this.listenerFuncs = listenerFuncs;
+            this.resize();
         }
 
         this.X.imageSmoothingEnabled = false;
@@ -1861,12 +2053,17 @@ class GameScreen extends Screen {
         this.data.tick(tt);
 
         while (this.data.cooldown.block.e > 0) {
-            new Block(this, randInt(Block.lanes), this.data.gridOffset, "#FF0000");
+            new Block(this, randInt(Block.lanes), this.data.gridOffset);
             this.data.cooldown.block.e--;
         }
         while (this.data.cooldown.blockUp.e > 0) {
-            this.data.cooldown.block.time *= 0.975;
+            this.data.cooldown.block.time *= 0.985;
             this.data.cooldown.blockUp.e--;
+        }
+        while (this.data.cooldown.powUp.e > 0) {
+            new PowUp(this);
+            this.data.cooldown.powUp.time += 1000;
+            this.data.cooldown.powUp.e--;
         }
         if (this.data.cooldown.diffUp.e > 0) {
             this.data.difficulty += this.data.cooldown.diffUp.e;
