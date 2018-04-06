@@ -93,7 +93,7 @@ class Data {
                 e: 0
             },
             powUp: {
-                time: 7500,
+                time: 9000,
                 now: 30000,
                 drpd: 1,
                 e: 0
@@ -135,6 +135,11 @@ class Data {
                     if (i instanceof Block)
                         i.value = 0;
                 }
+            }
+        }, {
+            color: "#33ff00",
+            payload: () => {
+                this.parent.player.lives += 1;
             }
         }];
 
@@ -752,6 +757,7 @@ class Player extends Thing {
         this.maxBullets = 7;
         this.bullets = 0;
         this._lives = 3;
+        this.drawLives = 3;
 
         this.powUp = {
             bullet: 0,
@@ -761,6 +767,7 @@ class Player extends Thing {
         this.aniframe = 0;
         this.aniInvinFrame = 0;
         this.aniInvinTime = 250;
+        this.changeDrawLives = 0;
     }
 
     get lives() {
@@ -768,12 +775,13 @@ class Player extends Thing {
     }
     set lives(e) {
         if (this.powUp.invincibility > 0) return;
-        if (e < this._lives) {
-            // add animation of player malfunctioning electric
+        let L = e < this._lives;
+        if (L) {
+            new Effects(this.parent, this.parent.sprsht.baseexp.e, 0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight);
         } else {
-            // add animation of healing
+            new Effects(this.parent, this.parent.sprsht.baseheal.e, 0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight);
         }
-
+        this.changeDrawLives = L ? this.parent.sprsht.baseexp.len / 2 : this.parent.sprsht.baseheal.len / 2;
         this._lives = e;
     }
 
@@ -785,9 +793,15 @@ class Player extends Thing {
         this.drawPlayer(X);
     }
     drawBase(X) {
-        let img = this.baseColor[this.lives - 1],
-            af = Math.floor(this.aniframe) + 1,
-            tr = this.aniframe % 1;
+        let af = Math.floor(this.aniframe) + 1,
+            tr = this.aniframe % 1,
+            img;
+
+        if (this.lives > 3) {
+            img = this.baseColor[this.baseColor.length - 1];
+        } else {
+            img = this.baseColor[this.drawLives - 1];
+        }
 
         if (!img) return;
         let imgf = img[af % img.length],
@@ -911,8 +925,7 @@ class Player extends Thing {
                 y1 + h1 > i.y
             ) {
                 i.rem = true;
-                this.lives--;
-                {
+                this.lives--; {
                     let x = (x1 + w1 / 2 + i.x + i.width / 2) / 2,
                         y = (y1 + h1 / 2 + i.y + i.height / 2) / 2,
                         j = this.parent.sprsht.elctexp.e;
@@ -953,6 +966,12 @@ class Player extends Thing {
             }
         } else {
             this.aniInvinFrame = this.powUp.invincibility / 5000;
+        }
+        if (this.changeDrawLives > 0) {
+            this.changeDrawLives -= tt;
+        } else {
+            this.changeDrawLives = 0;
+            this.drawLives = this.lives;
         }
 
         for (let i in this.powUp) {
@@ -1918,13 +1937,16 @@ class GameScreen extends Screen {
                 base: [
                     ["imgs/base0_0.png", "imgs/base0_1.png", "imgs/base0_2.png", "imgs/base0_3.png", "imgs/base0_4.png", "imgs/base0_5.png"],
                     ["imgs/base1_0.png", "imgs/base1_1.png", "imgs/base1_2.png", "imgs/base1_3.png", "imgs/base1_4.png", "imgs/base1_5.png"],
-                    ["imgs/base2.png"]
+                    ["imgs/base2.png"],
+                    ["imgs/base3_0.png", "imgs/base3_1.png", "imgs/base3_2.png", "imgs/base3_3.png"]
                 ],
                 pow: ["imgs/pow_0.png", "imgs/pow_1.png", "imgs/pow_2.png", "imgs/pow_3.png"]
             },
             sprshtimgs: {
                 elctexp: "imgs/elctexp.png",
-                fireexp: "imgs/fireexp.png"
+                fireexp: "imgs/fireexp.png",
+                baseexp: "imgs/baseexp.png",
+                baseheal: "imgs/baseheal.png"
             }
         };
         this.img = {};
@@ -1937,6 +1959,16 @@ class GameScreen extends Screen {
             },
             fireexp: {
                 len: 450,
+                sg: 7,
+                e: null
+            },
+            baseexp: {
+                len: 750,
+                sg: 7,
+                e: null
+            },
+            baseheal: {
+                len: 1200,
                 sg: 7,
                 e: null
             }
@@ -2155,7 +2187,7 @@ class GameScreen extends Screen {
         }
         while (this.data.cooldown.powUp.e > 0) {
             new PowUp(this);
-            this.data.cooldown.powUp.time += 1000;
+            this.data.cooldown.powUp.time *= 1.05;
             this.data.cooldown.powUp.e--;
         }
         if (this.data.cooldown.diffUp.e > 0) {
