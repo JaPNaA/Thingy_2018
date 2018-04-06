@@ -262,9 +262,43 @@ class Data {
 
 class PersistentData {
     constructor() {
-        // get localstorage persistent data
-        // stores highscores, time played, total score, etc
-        this.highscore = 0;
+        this.lskey = "blockInvasionData";
+
+        this._highscore = 0;
+        this.timePlayed = 0;
+        this.totalScore = 0;
+
+        try {
+            if (localStorage[this.lskey]) {
+                let {
+                    highscore,
+                    timePlayed,
+                    totalScore
+                } = JSON.parse(localStorage[this.lskey]);
+                this._highscore = highscore || this._highscore;
+                this.timePlayed = timePlayed || this.timePlayed;
+                this.totalScore = totalScore || this.totalScore;
+            }
+        } catch (e) {
+            console.warn("localStorage persistantData corrupt");
+        }
+
+        this.upd();
+    }
+    get highscore() {
+        return this._highscore;
+    }
+    set highscore(e) {
+        if (e > this._highscore) {
+            this._highscore = e;
+        }
+    }
+    upd() {
+        localStorage[this.lskey] = JSON.stringify({
+            highscore: this._highscore,
+            timePlayed: this.timePlayed,
+            totalScore: this.totalScore
+        });
     }
 }
 
@@ -547,6 +581,11 @@ class PowUp extends Thing {
         X.translate(this.x, this.y);
         X.scale(sc, sc);
         X.globalAlpha = tr;
+
+        X.shadowBlur = 24;
+        X.shadowColor = "#FFFFFF80";
+        X.shadowOffsetX = 0;
+        X.shadowOffsetY = 0;
 
         X.beginPath();
         X.fillStyle = this.color;
@@ -1105,6 +1144,16 @@ class DeathPrompt extends Overlay {
         this.buttonOfy = 860;
 
         {
+            let PD = this.parent.persistentData,
+                D = this.parent.data;
+            this.prevHighscore = PD.highscore;
+            PD.highscore = D.score;
+            PD.totalScore += D.score;
+            PD.timePlayed += D.timeElapsed;
+            PD.upd();
+        }
+
+        {
             let a = new Button(this.parent, 84, 1700, 424, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play agian");
             a.addEventListener("click", () => this.playAgain());
             this.obs.push(a);
@@ -1215,20 +1264,20 @@ class DeathPrompt extends Overlay {
         }
 
 
-        if (PD.highscore < D.score) {
+        if (this.prevHighscore < D.score) {
             X.font = "48px 'Bree Serif'";
             X.fillText("YOU BEAT YOUR HIGHSCORE! ", 84, 696);
-            X.fillText("You scored " + (D.score - PD.highscore) + " more points than", 84, 748);
-            X.fillText("your highscore, " + PD.highscore, 84, 800);
-        } else if (PD.highscore == D.score) {
+            X.fillText("You scored " + (D.score - this.prevHighscore) + " more points than", 84, 748);
+            X.fillText("your highscore, " + this.prevHighscore, 84, 800);
+        } else if (this.prevHighscore == D.score) {
             X.font = "48px 'Bree Serif'";
             X.fillText("YOU BEAT YOur... oh wait ", 84, 696);
-            X.fillText("You scored your highscore, " + PD.highscore, 84, 748);
+            X.fillText("You scored your highscore, " + this.prevHighscore, 84, 748);
             X.fillText("No new highscore for you.", 84, 800);
         } else {
             X.font = "48px 'Bree Serif'";
-            X.fillText("Your only " + (PD.highscore - D.score) + " points from", 84, 696);
-            X.fillText("your highscore, " + PD.highscore, 84, 748);
+            X.fillText("Your only " + (this.prevHighscore - D.score) + " points from", 84, 696);
+            X.fillText("your highscore, " + this.prevHighscore, 84, 748);
         }
 
         X.restore();
