@@ -403,8 +403,12 @@ class Block extends Thing {
             this.parent.data.playerAlive &&
             this.y + this.height - this.margin > this.parent.height - this.parent.player.baseHeight
         ) {
+            let x = this.x + this.width / 2,
+                y = this.y + this.height / 2,
+                j = this.parent.sprsht.fireexp.e;
             this.destroyed = true;
             this.parent.player.lives--;
+            new Effects(this.parent, j, x, y, 224, 224);
         }
 
         if (this.y > this.parent.height) {
@@ -908,7 +912,12 @@ class Player extends Thing {
             ) {
                 i.rem = true;
                 this.lives--;
-                // at position of hit, add electric ball animation
+                {
+                    let x = (x1 + w1 / 2 + i.x + i.width / 2) / 2,
+                        y = (y1 + h1 / 2 + i.y + i.height / 2) / 2,
+                        j = this.parent.sprsht.elctexp.e;
+                    new Effects(this.parent, j, x, y, 192, 192);
+                }
             }
         }
     }
@@ -1228,6 +1237,50 @@ class DeathPrompt extends Overlay {
     }
 }
 
+class SprSht {
+    constructor(img, sg, len) {
+        this.width = img.width / sg;
+        this.height = img.height;
+        this.length = len;
+        this.imagesLength = sg;
+        this.img = img;
+    }
+}
+
+class Effects extends Overlay {
+    constructor(p, t, x, y, w, h) {
+        super(p);
+
+        this.x = x;
+        this.y = y;
+        this.width = w;
+        this.height = h;
+
+        this.aniframe = 0;
+        this.anitime = t.length;
+
+        this.imgLength = t.imagesLength;
+        this.sprsht = t;
+    }
+    tick(tt) {
+        if (this.aniframe < 1) {
+            this.aniframe += tt / this.anitime;
+        } else {
+            this.rem = true;
+        }
+    }
+    draw() {
+        var X = this.parent.X,
+            x = Math.floor(this.aniframe * this.sprsht.imagesLength);
+        X.imageSmoothingEnabled = false;
+        X.drawImage(
+            this.sprsht.img,
+            x * this.sprsht.width, 0, this.sprsht.width, this.sprsht.height,
+            this.x, this.y, this.width, this.height
+        );
+    }
+}
+
 class UIElement {
     constructor(p, x, y, w, h) {
         this.parent = p;
@@ -1491,6 +1544,7 @@ class Screen {
             if (this.autoStart) {
                 this.start();
             }
+            this.afterLoadSetup();
             return;
         }
 
@@ -1503,6 +1557,7 @@ class Screen {
 
     start() {}
     stop() {}
+    afterLoadSetup() {}
     resize() {
         if (this.resizing || !this.started && this.lastSize.has) return;
         var dpr = window.devicePixelRatio || 1,
@@ -1866,9 +1921,26 @@ class GameScreen extends Screen {
                     ["imgs/base2.png"]
                 ],
                 pow: ["imgs/pow_0.png", "imgs/pow_1.png", "imgs/pow_2.png", "imgs/pow_3.png"]
+            },
+            sprshtimgs: {
+                elctexp: "imgs/elctexp.png",
+                fireexp: "imgs/fireexp.png"
             }
         };
         this.img = {};
+        this.sprshtimgs = {};
+        this.sprsht = {
+            elctexp: {
+                len: 650,
+                sg: 7,
+                e: null
+            },
+            fireexp: {
+                len: 450,
+                sg: 7,
+                e: null
+            }
+        };
 
         this.aniFrame = 0;
         this.aniTime = 250;
@@ -1983,6 +2055,13 @@ class GameScreen extends Screen {
         }
 
         this.X.imageSmoothingEnabled = false;
+    }
+
+    afterLoadSetup() {
+        for (let i in this.sprshtimgs) {
+            let j = this.sprsht[i];
+            j.e = new SprSht(this.sprshtimgs[i], j.sg, j.len);
+        }
     }
 
     reset() {
