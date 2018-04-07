@@ -1686,6 +1686,16 @@ class Pannel extends UIElement {
 
         X.stroke(this.backArrow);
 
+        X.fillStyle = "#FFFFFF"; {
+            let t = 0.5,
+                s = 0;
+            X.globalAlpha *= easeInOutQuad(this.ani.back.frame) * (t - s) + s;
+        }
+        X.font = "32px 'Bree Serif'";
+        X.fillStyle = "#D8D8D8";
+        X.textBaseline = "middle";
+        X.fillText("Back", 52, 32);
+
         X.restore();
         X.save();
         X.translate(this.x, this.y);
@@ -1722,7 +1732,7 @@ class Pannel extends UIElement {
         }
     }
     mouseup(e) {
-        if (this.active) {
+        if (this.active && this.hover) {
             this.closing = true;
             this.parent.pannelOpen = false;
         }
@@ -1757,6 +1767,17 @@ class InstructionsPannel extends Pannel {
         X.fillStyle = "#FFFFFF";
         X.font = "48px 'Bree Serif'";
         X.fillText("I DONT HAVE INSTRUCTIONS :(", 84, 256);
+    }
+}
+class StatPannel extends Pannel {
+    constructor(p) {
+        super(p, "#434343EB");
+    }
+
+    drawContent(X) {
+        X.fillStyle = "#FFFFFF";
+        X.font = "48px 'Bree Serif'";
+        X.fillText("your not very good", 84, 256);
     }
 }
 
@@ -2065,7 +2086,7 @@ class StartScreen extends Screen {
             .addEventListener("click", () => new InstructionsPannel(this));
 
         new Button(this, 300, 1104, 480, 64, 60, "48px 'Bree Serif'", "#FFFFFF", "Stats")
-            .addEventListener("click", () => alert("Status: very bed"));
+            .addEventListener("click", () => new StatPannel(this));
 
         new Button(this, 300, 1178, 480, 64, 45, "48px 'Bree Serif'", "#FFFFFF", "GitHub")
             .addEventListener("click", () => open("https://github.com/JaPNaA/Thingy_2018/tree/master/blockInvasion", "_blank"));
