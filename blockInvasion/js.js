@@ -469,7 +469,6 @@ class Block extends Thing {
         }
     }
     draw() {
-        // if (this.value <= 0) return;
         var X = this.parent.X,
             cdif = this.lvalue - this.value,
             tw,
@@ -1154,13 +1153,12 @@ class DeathPrompt extends Overlay {
         }
 
         {
-            let a = new Button(this.parent, 84, 1700, 424, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play agian");
+            let a = new Button(this, 84, 1700, 424, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play agian"),
+                b = new Button(this, 572, 1700, 424, 64, 0, "48px 'Bree Serif'", "#FFFFFF", "Title Screen");
             a.addEventListener("click", () => this.playAgain());
-            this.obs.push(a);
-        } {
-            let a = new Button(this.parent, 572, 1700, 424, 64, 0, "48px 'Bree Serif'", "#FFFFFF", "Title Screen");
-            a.addEventListener("click", () => this.titleScreen());
-            this.obs.push(a);
+            b.addEventListener("click", () => this.titleScreen());
+            a.parent = this.parent;
+            b.parent = this.parent;
         }
     }
 
@@ -1357,11 +1355,15 @@ class UIElement {
         this.width = w;
         this.height = h;
 
+        this.rem = false;
+
         this.then = performance.now();
 
         this.eventListeners = {
             click: []
         };
+
+        this.parent.obs.push(this);
     }
 
     checkInside(x, y) {
@@ -1379,6 +1381,13 @@ class UIElement {
 
     draw() {}
     event() {}
+    cursor() {}
+    remove() {
+        if (this.rem) {
+            let o = this.parent.obs;
+            o.splice(o.indexOf(this), 1);
+        }
+    }
     addEventListener(t, e) {
         var x = this.eventListeners[t];
         if (!x) return false;
@@ -1534,12 +1543,17 @@ class Button extends UIElement {
     }
 
     cursor() {
-        if (this.hover) {
+        if (this.checkInside(this.parent.mouse.x, this.parent.mouse.y) && !this.parent.pannelOpen) {
             return "pointer";
         }
     }
 
     event(t, e) {
+        if (this.parent.pannelOpen) {
+            this.active = false;
+            this.hover = false;
+            return;
+        }
         switch (t) {
             case "mousedown":
                 this.mousedown(e);
@@ -1560,6 +1574,189 @@ class Button extends UIElement {
                 this.touchend(e);
                 break;
         }
+    }
+}
+class Pannel extends UIElement {
+    constructor(p, bg) {
+        super(p, 0, p.height, p.width, p.height - 360);
+
+        this.targetY = p.height - this.height;
+        this.startY = this.y;
+
+        this.bgColor = bg;
+        this.backArrow = new Path2D(); {
+            let x = this.backArrow;
+            x.moveTo(36, 0);
+            x.lineTo(0, 32);
+            x.lineTo(36, 64);
+        }
+
+        this.aniFrame = 0;
+        this.aniTime = 750;
+        this.closing = false;
+
+        this.ani = {
+            back: {
+                frame: 0,
+                time: 150
+            }
+        };
+
+        this.hover = false;
+        this.active = false;
+
+        this.backX = 48;
+        this.backHeight = 104;
+
+        this.parent.pannelOpen = true;
+    }
+    aniTick(tt) {
+        if (this.closing) {
+            if (this.aniFrame > 0) {
+                this.aniFrame -= tt / this.aniTime;
+            } else {
+                this.aniFrame = 0;
+                this.rem = true;
+            }
+        } else {
+            if (this.aniFrame < 1) {
+                this.aniFrame += tt / this.aniTime;
+            } else {
+                this.aniFrame = 1;
+            }
+        }
+
+        {
+            let an = this.ani.back;
+            if (this.hover) {
+                if (an.frame < 1) {
+                    an.frame += tt / an.time;
+                } else {
+                    an.frame = 1;
+                }
+            } else {
+                if (an.frame > 0) {
+                    an.frame -= tt / an.time;
+                } else {
+                    an.frame = 0;
+                }
+            }
+        }
+
+        this.y = easeInOutQuad(this.aniFrame) * (this.targetY - this.startY) + this.startY;
+    }
+    tick(tt) {
+        this.aniTick(tt);
+    }
+    drawContent() {}
+    draw() {
+        var X = this.parent.X,
+            now = performance.now(),
+            tt = now - this.then;
+        this.then = now;
+
+        this.tick(tt);
+
+        X.save();
+        X.translate(this.x, this.y);
+        X.globalAlpha = easeInOutQuad(this.aniFrame);
+        X.fillStyle = this.bgColor;
+
+        X.fillRect(0, 0, this.width, this.height);
+
+        X.fillStyle = "#FFFFFF"; {
+            let t = 0.2,
+                s = 0.05;
+            X.globalAlpha *= easeInOutQuad(this.ani.back.frame) * (t - s) + s;
+        }
+
+        X.fillRect(0, this.backX, this.width, this.backHeight);
+
+        {
+            let t = 48,
+                s = 64,
+                x = easeInOutQuad(this.ani.back.frame) * (t - s) + s;
+            X.translate(x, 68);
+        }
+
+        X.globalAlpha = 1;
+        X.strokeStyle = "#D8D8D8";
+        X.lineCap = 'round';
+        X.lineWidth = 8;
+
+        X.stroke(this.backArrow);
+
+        X.restore();
+        X.save();
+        X.translate(this.x, this.y);
+
+        this.drawContent(X);
+        X.restore();
+
+    }
+
+    checkInsideGoBack(x, y) {
+        let tx = this.x,
+            ty = this.y + this.backX,
+            tw = this.width,
+            th = this.backHeight;
+
+        if (
+            tx < x &&
+            tx + tw > x &&
+            ty < y &&
+            ty + th > y
+        ) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    mousemove(e) {
+        this.hover = this.checkInsideGoBack(this.parent.mouse.x, this.parent.mouse.y);
+    }
+    mousedown(e) {
+        if (this.hover) {
+            this.active = true;
+        }
+    }
+    mouseup(e) {
+        if (this.active) {
+            this.closing = true;
+            this.parent.pannelOpen = false;
+        }
+    }
+
+    cursor() {
+        if (this.checkInsideGoBack(this.parent.mouse.x, this.parent.mouse.y)) {
+            return "pointer";
+        }
+    }
+
+    event(t, e) {
+        switch (t) {
+            case "mousemove":
+                this.mousemove(e);
+                break;
+            case "mousedown":
+                this.mousedown(e);
+                break;
+            case "mouseup":
+                this.mouseup(e);
+                break;
+        }
+    }
+}
+class InstructionsPannel extends Pannel {
+    constructor(p) {
+        super(p, "#434343EB");
+    }
+
+    drawContent(X) {
+        X.fillStyle = "#FFFFFF";
+        X.font = "48px 'Bree Serif'";
+        X.fillText("I DONT HAVE INSTRUCTIONS :(", 84, 256);
     }
 }
 
@@ -1600,6 +1797,8 @@ class Screen {
 
         this.started = false;
         this.autoStart = false;
+
+        this.pannelOpen = false;
     }
 
     get loadedDependencies() {
@@ -1805,6 +2004,9 @@ class StartScreen extends Screen {
         this.fadeOutTime = 150;
         this.fading = false;
 
+        this.aniFrame = 0;
+        this.aniTime = 650;
+
         this.sim = new GameScreen(this, true);
         this.sim.start();
 
@@ -1855,19 +2057,19 @@ class StartScreen extends Screen {
         addEventListener("touchmove", this.listenerFuncs.touchmove, passiveFalse);
 
 
-        {
-            let a = new Button(this, 300, 956, 480, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play");
-            a.addEventListener("click", () => this.play());
-            this.obs.push(a);
-        } {
-            let a = new Button(this, 300, 1030, 480, 64, 75, "48px 'Bree Serif'", "#FFFFFF", "Instructions");
-            a.addEventListener("click", () => alert("To play the game, press the play button. :)"));
-            this.obs.push(a);
-        } {
-            let a = new Button(this, 300, 1104, 480, 64, 45, "48px 'Bree Serif'", "#FFFFFF", "GitHub");
-            a.addEventListener("click", () => open("https://github.com/JaPNaA/Thingy_2018/tree/master/blockInvasion", "bigithub"));
-            this.obs.push(a);
-        }
+
+        new Button(this, 300, 956, 480, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play")
+            .addEventListener("click", () => this.play());
+
+        new Button(this, 300, 1030, 480, 64, 75, "48px 'Bree Serif'", "#FFFFFF", "Instructions")
+            .addEventListener("click", () => new InstructionsPannel(this));
+
+        new Button(this, 300, 1104, 480, 64, 60, "48px 'Bree Serif'", "#FFFFFF", "Stats")
+            .addEventListener("click", () => alert("Status: very bed"));
+
+        new Button(this, 300, 1178, 480, 64, 45, "48px 'Bree Serif'", "#FFFFFF", "GitHub")
+            .addEventListener("click", () => open("https://github.com/JaPNaA/Thingy_2018/tree/master/blockInvasion", "_blank"));
+
 
         this.resize();
         this.draw();
@@ -1905,8 +2107,23 @@ class StartScreen extends Screen {
         if (!this.started) return;
         if (!this.started && !e) return;
         var now = performance.now(),
-            tt = now - this.then;
+            tt = now - this.then,
+            ga = 1;
         this.then = now;
+
+        if (this.pannelOpen) {
+            if (this.aniFrame < 1) {
+                this.aniFrame += tt / this.aniTime;
+            } else {
+                this.aniFrame = 1;
+            }
+        } else {
+            if (this.aniFrame > 0) {
+                this.aniFrame -= tt / this.aniTime;
+            } else {
+                this.aniFrame = 0;
+            }
+        }
 
         X.save();
         if (this.fading) {
@@ -1918,11 +2135,22 @@ class StartScreen extends Screen {
                 return;
             }
 
-            X.globalAlpha = this.fadeOut / this.fadeOutTime;
+            X.globalAlpha = ga = this.fadeOut / this.fadeOutTime;
         }
 
         this.sim.draw();
-        this.eachObs(e => e.draw());
+        X.globalAlpha *= 1 - easeInOutQuad(this.aniFrame); // make buttons transparent
+        this.eachObs(e => {
+            if (e instanceof Button) {
+                e.draw();
+            }
+        });
+        X.globalAlpha = ga; // restore, draw everything else
+        this.eachObs(e => {
+            if (!(e instanceof Button)) {
+                e.draw();
+            }
+        });
 
         // Draw text
         var txw;
@@ -1931,6 +2159,8 @@ class StartScreen extends Screen {
         X.shadowOffsetX = 4;
         X.shadowOffsetY = 4;
         X.fillStyle = this.color;
+
+        X.translate(0, easeInOutQuad(this.aniFrame) * -632);
 
         {
             X.font = "124px 'Russo One'";
@@ -1952,6 +2182,8 @@ class StartScreen extends Screen {
         }
 
         X.restore();
+
+        this.eachObs(e => e.remove());
 
         this.reqanf();
     }
@@ -2024,7 +2256,7 @@ class GameScreen extends Screen {
         };
 
         this.aniFrame = 0;
-        this.aniTime = 250;
+        this.aniTime = 350;
         this.closing = false;
 
         this.setup();
@@ -2046,7 +2278,7 @@ class GameScreen extends Screen {
             this.ready = true;
         }
 
-        // very ugly, fix soon
+        //* very ugly, fix soon
 
         for (let ip in this.loads) {
             let i = this.loads[ip];
