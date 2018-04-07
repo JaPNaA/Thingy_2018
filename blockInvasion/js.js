@@ -265,19 +265,37 @@ class PersistentData {
         this.lskey = "blockInvasionData";
 
         this._highscore = 0;
+        this._highAftermathScore = 0;
         this.timePlayed = 0;
         this.totalScore = 0;
+        this.totalAftermathScore = 0;
+        this.totalBlocksDestroyed = 0;
+        this.totalBulletExplodes = 0;
+        this.totalBlocksHit = 0;
+        this.gamesPlayed = 0;
 
         try {
             if (localStorage[this.lskey]) {
                 let {
                     highscore,
+                    highAftermathScore,
                     timePlayed,
-                    totalScore
+                    totalScore,
+                    totalAftermathScore,
+                    totalBlocksDestroyed,
+                    totalBulletExplodes,
+                    totalBlocksHit,
+                    gamesPlayed
                 } = JSON.parse(localStorage[this.lskey]);
                 this._highscore = highscore || this._highscore;
+                this._highAftermathScore = highAftermathScore || this._highAftermathScore;
                 this.timePlayed = timePlayed || this.timePlayed;
                 this.totalScore = totalScore || this.totalScore;
+                this.totalAftermathScore = totalAftermathScore || this.totalAftermathScore;
+                this.totalBlocksDestroyed = totalBlocksDestroyed || this.totalBlocksDestroyed;
+                this.totalBulletExplodes = totalBulletExplodes || this.totalBulletExplodes;
+                this.totalBlocksHit = totalBlocksHit || this.totalBlocksHit;
+                this.gamesPlayed = gamesPlayed || this.gamesPlayed;
             }
         } catch (e) {
             console.warn("localStorage persistantData corrupt");
@@ -293,11 +311,27 @@ class PersistentData {
             this._highscore = e;
         }
     }
+
+    get highAftermathScore() {
+        return this._highAftermathScore;
+    }
+    set highAftermathScore(e) {
+        if (e > this._highAftermathScore) {
+            this._highAftermathScore = e;
+        }
+    }
+
     upd() {
         localStorage[this.lskey] = JSON.stringify({
             highscore: this._highscore,
+            highAftermathScore: this._highAftermathScore,
             timePlayed: this.timePlayed,
-            totalScore: this.totalScore
+            totalScore: this.totalScore,
+            totalAftermathScore: this.totalAftermathScore,
+            totalBlocksDestroyed: this.totalBlocksDestroyed,
+            totalBulletExplodes: this.totalBulletExplodes,
+            totalBlocksHit: this.totalBlocksHit,
+            gamesPlayed: this.gamesPlayed
         });
     }
 }
@@ -1145,6 +1179,8 @@ class DeathPrompt extends Overlay {
 
         this.buttonOfy = 860;
 
+        this.payloaded = false;
+
         {
             let PD = this.parent.persistentData,
                 D = this.parent.data;
@@ -1152,6 +1188,10 @@ class DeathPrompt extends Overlay {
             PD.highscore = D.score;
             PD.totalScore += D.score;
             PD.timePlayed += D.timeElapsed;
+            PD.totalBlocksDestroyed += D.blocksDestroyed;
+            PD.totalBulletExplodes += D.expScore;
+            PD.totalBlocksHit += D.hitScore;
+            PD.gamesPlayed += 1;
             PD.upd();
         }
 
@@ -1222,6 +1262,13 @@ class DeathPrompt extends Overlay {
         this.y = this.parent.height - easeInOutQuad(this.aniFrame) * this.height;
         for (let i of this.obs) {
             i.y = this.y + this.buttonOfy;
+        }
+
+        this.parent.persistentData.highAftermathScore = this.parent.data.afterMathScore;
+        if (this.parent.data.afterMath.done && !this.payloaded) {
+            this.parent.persistentData.totalAftermathScore += this.parent.data.afterMathScore;
+            this.payloaded = true;
+            this.parent.persistentData.upd();
         }
     }
 
@@ -1808,8 +1855,7 @@ In this game, there are 4 powerups you can collect by shooting at them,
   - Blue: Makes you invincible 
 All powerups explode into 7 yellow 1-shot bullets\
 `;
-        this.prerender = document.createElement("canvas");
-        {
+        this.prerender = document.createElement("canvas"); {
             this.prerender.width = this.width;
             this.prerender.height = this.height;
             let x = this.prerender.getContext('2d');
@@ -1847,8 +1893,8 @@ All powerups explode into 7 yellow 1-shot bullets\
 
     drawContent(X) {
         X.drawImage(
-            this.prerender, 
-            0, 0, this.prerender.width, this.prerender.height, 
+            this.prerender,
+            0, 0, this.prerender.width, this.prerender.height,
             0, 0, this.width, this.height
         );
     }
