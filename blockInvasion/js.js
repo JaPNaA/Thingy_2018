@@ -2798,4 +2798,4 @@ class P {
     }
 }
 
-const p = new P(); // remove const p to hide access
+new P();
