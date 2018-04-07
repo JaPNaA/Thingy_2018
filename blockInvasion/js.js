@@ -1076,6 +1076,8 @@ class Player extends Thing {
         this.y += this.vy * tt;
 
         this.clamps();
+        if (this.parent.data.cooldown.bullet.e > 3) 
+            this.parent.data.cooldown.bullet.e = 3;
         while (this.parent.data.cooldown.bullet.e > 0) {
             if (this.bullets >= this.maxBullets) break;
             this.spawnBullet();
@@ -2079,16 +2081,16 @@ class StartScreen extends Screen {
 
 
 
-        new Button(this, 300, 956, 480, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play")
+        new Button(this, 300, 892, 480, 64, 120, "48px 'Bree Serif'", "#FFFFFF", "Play")
             .addEventListener("click", () => this.play());
 
-        new Button(this, 300, 1030, 480, 64, 75, "48px 'Bree Serif'", "#FFFFFF", "Instructions")
+        new Button(this, 300, 966, 480, 64, 75, "48px 'Bree Serif'", "#FFFFFF", "Instructions")
             .addEventListener("click", () => new InstructionsPannel(this));
 
-        new Button(this, 300, 1104, 480, 64, 60, "48px 'Bree Serif'", "#FFFFFF", "Stats")
+        new Button(this, 300, 1040, 480, 64, 60, "48px 'Bree Serif'", "#FFFFFF", "Stats")
             .addEventListener("click", () => new StatPannel(this));
 
-        new Button(this, 300, 1178, 480, 64, 45, "48px 'Bree Serif'", "#FFFFFF", "GitHub")
+        new Button(this, 300, 1114, 480, 64, 45, "48px 'Bree Serif'", "#FFFFFF", "GitHub")
             .addEventListener("click", () => open("https://github.com/JaPNaA/Thingy_2018/tree/master/blockInvasion", "_blank"));
 
 
@@ -2181,14 +2183,14 @@ class StartScreen extends Screen {
         X.shadowOffsetY = 4;
         X.fillStyle = this.color;
 
-        X.translate(0, easeInOutQuad(this.aniFrame) * -632);
+        X.translate(0, easeInOutQuad(this.aniFrame) * -568);
 
         {
             X.font = "124px 'Russo One'";
             let txt = "Block Invasion",
                 w = X.measureText(txt).width,
                 x = (this.width - w) / 2,
-                y = 830;
+                y = 766;
             txw = x + w;
 
             X.fillText(txt, x, y);
@@ -2197,7 +2199,7 @@ class StartScreen extends Screen {
             let txt = "Created By JaPNaA",
                 w = X.measureText(txt).width,
                 x = txw - w,
-                y = 900;
+                y = 836;
 
             X.fillText(txt, x, y);
         }
