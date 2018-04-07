@@ -495,10 +495,14 @@ class Block extends Thing {
 
         if (this.value > 0) {
             let diff = (this.value - this.lvalue);
-            if (diff <= 16) {
+            if (Math.abs(diff) <= 16) {
                 this.lvalue += diff / (500 / tt);
             } else {
-                this.lvalue = this.value - 16;
+                if (diff > 0) {
+                    this.lvalue = this.value - 16;
+                } else {
+                    this.lvalue = this.value + 16;
+                }
             }
         }
     }
@@ -1901,19 +1905,31 @@ All powerups explode into 7 yellow 1-shot bullets\
 class StatPannel extends Pannel {
     constructor(p) {
         super(p, "#434343EB");
-        var PD = this.parent.parent.nextScreen.persistentData;
-        
+        var PD = this.parent.parent.nextScreen.persistentData,
+            gp = PD.gamesPlayed;
+
         this.content = `\
-You've played ${PD.gamesPlayed} games
+You've played ${gp} games
 Your highscore is ${PD.highscore}
 Your highest aftermath score is ${PD.highAftermathScore}
-You've played for a total of ${Math.round(PD.timePlayed / 6e4)} minutes
+You've played for a total of ${Math.ceil(PD.timePlayed / 6e4)} minutes
 Your total score is ${PD.totalScore}
 Your total aftermath score is ${PD.totalAftermathScore} 
 You've destroyed a total of ${PD.totalBlocksDestroyed} blocks
 Your bullets hit ${PD.totalBlocksHit} times
-Your bullets have exploded ${PD.totalBulletExplodes} times\
+Your bullets have exploded ${PD.totalBulletExplodes} times
 `;
+
+        if (gp) {
+            this.content += `
+Your average score is ${Math.round(PD.totalScore / gp)}
+Your average aftermath score is ${Math.round(PD.totalAftermathScore) / gp}
+You normally last ${Math.round((PD.timePlayed / 1000) / gp)} seconds
+You normally destroy ${Math.round(PD.totalBlocksDestroyed / gp)} blocks
+Your bullets normally hit ${Math.round(PD.totalBlocksHit / gp)} times per game
+Your bullets normally explode ${Math.round(PD.totalBulletExplodes / gp)} times per game \
+`;
+        }
 
         this.prerender = document.createElement("canvas"); {
             let x = this.prerender.getContext('2d');
@@ -2167,6 +2183,14 @@ class Screen {
             this.blur();
         } else {
             this.focus();
+        }
+    }
+    beforeunload(e) {
+        if (this.persistentData) {
+            this.persistentData.upd();
+        }
+        if (this instanceof GameScreen && this.started && this.data.playerAlive) {
+            return "Are you sure?";
         }
     }
 }
@@ -2514,7 +2538,8 @@ class GameScreen extends Screen {
                     e.preventDefault();
                     document.body.scrollTop = document.body.scrollLeft = 0;
                 },
-                contextmenu: e => e.preventDefault()
+                contextmenu: e => e.preventDefault(),
+                beforeunload: e => this.beforeunload(e)
             };
 
             addEventListener("resize", listenerFuncs.resize);
@@ -2540,6 +2565,8 @@ class GameScreen extends Screen {
             });
 
             addEventListener("scroll", listenerFuncs.scroll, true);
+
+            window.onbeforeunload = listenerFuncs.beforeunload;
 
             this.listenerFuncs = listenerFuncs;
             this.resize();
