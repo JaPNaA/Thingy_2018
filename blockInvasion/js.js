@@ -1757,7 +1757,6 @@ class Pannel extends UIElement {
 
         this.drawContent(X);
         X.restore();
-
     }
 
     checkInsideGoBack(x, y) {
@@ -1775,6 +1774,31 @@ class Pannel extends UIElement {
             return true;
         } else {
             return false;
+        }
+    }
+    writeLongTxt(X, txt, x, y, maxX, lineSpacing) {
+        var text = txt.split(/(\n|\s)/),
+            line = 0,
+            cx = x,
+            cy = y,
+            ttt = "";
+
+        for (let rt of text) {
+            let t = rt,
+                w = X.measureText(t).width,
+                nx = cx + w;
+
+            if (t == "\n") {
+                cx = x;
+                nx = cx;
+                cy += lineSpacing;
+            } else if (nx > maxX) {
+                cx = x;
+                nx = cx + w;
+                cy += lineSpacing;
+            }
+            X.fillText(t, cx, cy);
+            cx = nx;
         }
     }
 
@@ -1856,38 +1880,13 @@ In this game, there are 4 powerups you can collect by shooting at them,
 All powerups explode into 7 yellow 1-shot bullets\
 `;
         this.prerender = document.createElement("canvas"); {
+            let x = this.prerender.getContext('2d');
             this.prerender.width = this.width;
             this.prerender.height = this.height;
-            let x = this.prerender.getContext('2d');
+
             x.fillStyle = "#FFFFFF";
             x.font = "48px 'Bree Serif'";
             this.writeLongTxt(x, this.content, 84, 256, this.parent.width - 84, 56);
-        }
-    }
-
-    writeLongTxt(X, txt, x, y, maxX, lineSpacing) {
-        var text = txt.split(/(\n|\s)/),
-            line = 0,
-            cx = x,
-            cy = y,
-            ttt = "";
-
-        for (let rt of text) {
-            let t = rt,
-                w = X.measureText(t).width,
-                nx = cx + w;
-
-            if (t == "\n") {
-                cx = x;
-                nx = cx;
-                cy += lineSpacing;
-            } else if (nx > maxX) {
-                cx = x;
-                nx = cx + w;
-                cy += lineSpacing;
-            }
-            X.fillText(t, cx, cy);
-            cx = nx;
         }
     }
 
@@ -1902,12 +1901,37 @@ All powerups explode into 7 yellow 1-shot bullets\
 class StatPannel extends Pannel {
     constructor(p) {
         super(p, "#434343EB");
+        var PD = this.parent.parent.nextScreen.persistentData;
+        
+        this.content = `\
+You've played ${PD.gamesPlayed} games
+Your highscore is ${PD.highscore}
+Your highest aftermath score is ${PD.highAftermathScore}
+You've played for a total of ${Math.round(PD.timePlayed / 6e4)} minutes
+Your total score is ${PD.totalScore}
+Your total aftermath score is ${PD.totalAftermathScore} 
+You've destroyed a total of ${PD.totalBlocksDestroyed} blocks
+Your bullets hit ${PD.totalBlocksHit} times
+Your bullets have exploded ${PD.totalBulletExplodes} times\
+`;
+
+        this.prerender = document.createElement("canvas"); {
+            let x = this.prerender.getContext('2d');
+            this.prerender.width = this.width;
+            this.prerender.height = this.height;
+
+            x.fillStyle = "#FFFFFF";
+            x.font = "48px 'Bree Serif'";
+            this.writeLongTxt(x, this.content, 84, 256, this.parent.width - 84, 64);
+        }
     }
 
     drawContent(X) {
-        X.fillStyle = "#FFFFFF";
-        X.font = "48px 'Bree Serif'";
-        X.fillText("your not very good", 84, 256);
+        X.drawImage(
+            this.prerender,
+            0, 0, this.prerender.width, this.prerender.height,
+            0, 0, this.width, this.height
+        );
     }
 }
 
