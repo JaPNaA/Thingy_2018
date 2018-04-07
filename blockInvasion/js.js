@@ -879,7 +879,8 @@ class Player extends Thing {
 
         if (!img) return;
         let imgf = img[af % img.length],
-            imgl = img[(af - 1) % img.length];
+            imgl = img[(af - 1) % img.length],
+            tre = easeInOutQuad(tr);
 
         if (!imgf) return;
 
@@ -887,14 +888,14 @@ class Player extends Thing {
 
         X.imageSmoothingEnabled = false;
 
-        X.globalAlpha = (1 - easeInOutQuad(tr)) * this.aniInvinFrame;
+        X.globalAlpha = (1 - tre) * this.aniInvinFrame;
         X.drawImage(
             imgl,
             0, 0, imgl.width, imgl.height,
             0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight
         );
 
-        X.globalAlpha = easeInOutQuad(tr) * this.aniInvinFrame;
+        X.globalAlpha = tre * this.aniInvinFrame;
         X.drawImage(
             imgf,
             0, 0, imgf.width, imgf.height,
@@ -1076,7 +1077,7 @@ class Player extends Thing {
         this.y += this.vy * tt;
 
         this.clamps();
-        if (this.parent.data.cooldown.bullet.e > 3) 
+        if (this.parent.data.cooldown.bullet.e > 3)
             this.parent.data.cooldown.bullet.e = 3;
         while (this.parent.data.cooldown.bullet.e > 0) {
             if (this.bullets >= this.maxBullets) break;
@@ -1654,14 +1655,18 @@ class Pannel extends UIElement {
     draw() {
         var X = this.parent.X,
             now = performance.now(),
-            tt = now - this.then;
+            tt = now - this.then,
+            aniframee, anibackframee;
         this.then = now;
 
         this.tick(tt);
 
+        aniframee = easeInOutQuad(this.aniFrame);
+        anibackframee = easeInOutQuad(this.ani.back.frame);
+
         X.save();
         X.translate(this.x, this.y);
-        X.globalAlpha = easeInOutQuad(this.aniFrame);
+        X.globalAlpha = aniframee;
         X.fillStyle = this.bgColor;
 
         X.fillRect(0, 0, this.width, this.height);
@@ -1669,7 +1674,7 @@ class Pannel extends UIElement {
         X.fillStyle = "#FFFFFF"; {
             let t = 0.2,
                 s = 0.05;
-            X.globalAlpha *= easeInOutQuad(this.ani.back.frame) * (t - s) + s;
+            X.globalAlpha *= anibackframee * (t - s) + s;
         }
 
         X.fillRect(0, this.backX, this.width, this.backHeight);
@@ -1677,7 +1682,7 @@ class Pannel extends UIElement {
         {
             let t = 48,
                 s = 64,
-                x = easeInOutQuad(this.ani.back.frame) * (t - s) + s;
+                x = anibackframee * (t - s) + s;
             X.translate(x, 68);
         }
 
@@ -1691,7 +1696,7 @@ class Pannel extends UIElement {
         X.fillStyle = "#FFFFFF"; {
             let t = 0.5,
                 s = 0;
-            X.globalAlpha *= easeInOutQuad(this.ani.back.frame) * (t - s) + s;
+            X.globalAlpha *= anibackframee * (t - s) + s;
         }
         X.font = "32px 'Bree Serif'";
         X.fillStyle = "#D8D8D8";
@@ -1701,6 +1706,7 @@ class Pannel extends UIElement {
         X.restore();
         X.save();
         X.translate(this.x, this.y);
+        X.globalAlpha = aniframee;
 
         this.drawContent(X);
         X.restore();
@@ -1763,12 +1769,62 @@ class Pannel extends UIElement {
 class InstructionsPannel extends Pannel {
     constructor(p) {
         super(p, "#434343EB");
+
+        this.content = `\
+Use your mouse, touch, WASD or Arrow keys to move the player.
+
+Try to aim at the blocks, everytime a blue bullet hits a block, the blocks loses value.
+Once the block gets to 0 value, it breaks. 
+
+In this game, there are 4 powerups you can collect by shooting at them, 
+  - Red: destroys all blocks on screen
+  - Yellow: gives you 1-shot bullets
+  - Green: Gives you 1 life
+  - Blue: Makes you invincible \
+`;
+        this.prerender = document.createElement("canvas");
+        {
+            this.prerender.width = this.width;
+            this.prerender.height = this.height;
+            let x = this.prerender.getContext('2d');
+            x.fillStyle = "#FFFFFF";
+            x.font = "48px 'Bree Serif'";
+            this.writeLongTxt(x, this.content, 84, 256, this.parent.width - 84, 64);
+        }
+    }
+
+    writeLongTxt(X, txt, x, y, maxX, lineSpacing) {
+        var text = txt.split(/(\n|\s)/),
+            line = 0,
+            cx = x,
+            cy = y,
+            ttt = "";
+
+        for (let rt of text) {
+            let t = rt,
+                w = X.measureText(t).width,
+                nx = cx + w;
+
+            if (t == "\n") {
+                cx = x;
+                nx = cx;
+                cy += lineSpacing;
+            } else if (nx > maxX) {
+                cx = x;
+                nx = cx + w;
+                cy += lineSpacing;
+            }
+            X.fillText(t, cx, cy);
+            cx = nx;
+        }
     }
 
     drawContent(X) {
-        X.fillStyle = "#FFFFFF";
-        X.font = "48px 'Bree Serif'";
-        X.fillText("I DONT HAVE INSTRUCTIONS :(", 84, 256);
+        X.drawImage(
+            this.prerender, 
+            0, 0, this.prerender.width, this.prerender.height, 
+            0, 0, this.width, this.height
+        );
     }
 }
 class StatPannel extends Pannel {
@@ -1777,6 +1833,8 @@ class StatPannel extends Pannel {
     }
 
     drawContent(X) {
+
+
         X.fillStyle = "#FFFFFF";
         X.font = "48px 'Bree Serif'";
         X.fillText("your not very good", 84, 256);
@@ -2131,7 +2189,8 @@ class StartScreen extends Screen {
         if (!this.started && !e) return;
         var now = performance.now(),
             tt = now - this.then,
-            ga = 1;
+            ga = 1,
+            aniframee;
         this.then = now;
 
         if (this.pannelOpen) {
@@ -2148,6 +2207,8 @@ class StartScreen extends Screen {
             }
         }
 
+        aniframee = easeInOutQuad(this.aniFrame);
+
         X.save();
         if (this.fading) {
             this.fadeOut -= tt;
@@ -2162,7 +2223,7 @@ class StartScreen extends Screen {
         }
 
         this.sim.draw();
-        X.globalAlpha *= 1 - easeInOutQuad(this.aniFrame); // make buttons transparent
+        X.globalAlpha *= 1 - aniframee; // make buttons transparent
         this.eachObs(e => {
             if (e instanceof Button) {
                 e.draw();
@@ -2183,7 +2244,7 @@ class StartScreen extends Screen {
         X.shadowOffsetY = 4;
         X.fillStyle = this.color;
 
-        X.translate(0, easeInOutQuad(this.aniFrame) * -568);
+        X.translate(0, aniframee * -568);
 
         {
             X.font = "124px 'Russo One'";
