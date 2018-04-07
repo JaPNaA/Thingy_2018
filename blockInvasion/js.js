@@ -1686,7 +1686,7 @@ class Pannel extends UIElement {
             X.translate(x, 68);
         }
 
-        X.globalAlpha = 1;
+        X.globalAlpha = aniframee;
         X.strokeStyle = "#D8D8D8";
         X.lineCap = 'round';
         X.lineWidth = 8;
@@ -1746,6 +1746,19 @@ class Pannel extends UIElement {
         }
     }
 
+    touchstart() {
+        this.mousemove();
+        this.mousedown();
+    }
+    touchmove() {
+        this.mousemove();
+    }
+    touchend() {
+        this.mousemove();
+        this.mouseup();
+        this.hover = false;
+    }
+
     cursor() {
         if (this.checkInsideGoBack(this.parent.mouse.x, this.parent.mouse.y)) {
             return "pointer";
@@ -1763,6 +1776,15 @@ class Pannel extends UIElement {
             case "mouseup":
                 this.mouseup(e);
                 break;
+            case "touchstart":
+                this.touchstart();
+                break;
+            case "touchend":
+                this.touchend();
+                break;
+            case "touchmove":
+                this.touchmove();
+                break;
         }
     }
 }
@@ -1776,11 +1798,15 @@ Use your mouse, touch, WASD or Arrow keys to move the player.
 Try to aim at the blocks, everytime a blue bullet hits a block, the blocks loses value.
 Once the block gets to 0 value, it breaks. 
 
+When bullets hit 5 blocks in a row, they explode into 4 more bullets. 
+When yellow bullets hit 5 blocks in a row, they explode into 4 more bullets, and destroys all blocks on screen.
+
 In this game, there are 4 powerups you can collect by shooting at them, 
   - Red: destroys all blocks on screen
-  - Yellow: gives you 1-shot bullets
+  - Yellow: gives you yellow 1-shot bullets
   - Green: Gives you 1 life
-  - Blue: Makes you invincible \
+  - Blue: Makes you invincible 
+All powerups explode into 7 yellow 1-shot bullets\
 `;
         this.prerender = document.createElement("canvas");
         {
@@ -1789,7 +1815,7 @@ In this game, there are 4 powerups you can collect by shooting at them,
             let x = this.prerender.getContext('2d');
             x.fillStyle = "#FFFFFF";
             x.font = "48px 'Bree Serif'";
-            this.writeLongTxt(x, this.content, 84, 256, this.parent.width - 84, 64);
+            this.writeLongTxt(x, this.content, 84, 256, this.parent.width - 84, 56);
         }
     }
 
@@ -1833,8 +1859,6 @@ class StatPannel extends Pannel {
     }
 
     drawContent(X) {
-
-
         X.fillStyle = "#FFFFFF";
         X.font = "48px 'Bree Serif'";
         X.fillText("your not very good", 84, 256);
