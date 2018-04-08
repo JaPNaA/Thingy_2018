@@ -118,14 +118,12 @@ World.prototype.setGuideStart = function (x, y) {
     let dpr = window.devicePixelRatio || 1;
     
     this.showGuide = true;
-    this.guide.x1 = x * dpr - this.camera.x;
-    this.guide.y1 = y * dpr - this.camera.y;
-    this.guide.x2 = x * dpr - this.camera.x;
-    this.guide.y2 = y * dpr - this.camera.y;
+    this.guide.x2 = this.guide.x1 = x * dpr - this.camera.x;
+    this.guide.y2 = this.guide.y1 = y * dpr - this.camera.y;
 };
 
 World.prototype.setGuideEnd = function (x, y) {
-    let dpr = window.devicePixelRatio || 1;    
+    let dpr = window.devicePixelRatio || 1;
     this.guide.x2 = x * dpr - this.camera.x;
     this.guide.y2 = y * dpr - this.camera.y;
 };

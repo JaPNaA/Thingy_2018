@@ -23,8 +23,8 @@ Point.prototype.upd = function (tt) {
     this.x += this.vx * tt;
     this.y += this.vy * tt;
 
-    this.vx *= ar;
-    this.vy *= ar;
+    this.vx *= Math.pow(ar, this.radius * Math.PI / 2);
+    this.vy *= Math.pow(ar, this.radius * Math.PI / 2);
 
     {
         let infx = 0,
