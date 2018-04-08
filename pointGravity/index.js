@@ -23,7 +23,8 @@ function resize() {
 
     focused = false;
     setTimeout(() => focused = true, 50);
-    world.scale(w / C.width, h / C.height);
+    world.scale((w / C.width) * (h / C.height));
+    ui.event("resize");
 
     C.width = w;
     C.height = h;
@@ -35,16 +36,22 @@ function mousedown(e) {
         ignmouse = true;
         return;
     }
-    if (e.button == 0) {
-        world.setGuideStart(mouse.x, mouse.y);
-    } else if (e.button == 1) {
-        // middle click
-    } else if (e.button == 2) {
-        // right click
-    }
+
     mouse.x = e.clientX;
     mouse.y = e.clientY;
-    mouse.down = true;
+
+    if (ui.shouldCapture(mouse.x, mouse.y)) {
+        ui.event("mousedown", e);
+    } else {
+        if (e.button == 0) {
+            world.setGuideStart(mouse.x, mouse.y);
+        } else if (e.button == 1) {
+            // middle click
+        } else if (e.button == 2) {
+            // right click
+        }
+        mouse.down = true;
+    }
 }
 
 function mouseup(e) {
@@ -55,31 +62,44 @@ function mouseup(e) {
     }
     mouse.x = e.clientX;
     mouse.y = e.clientY;
-    mouse.down = false;
-
-    if (e.button == 0) {
-        world.setGuideEnd(mouse.x, mouse.y);
-        world.newPointGuide();
-        world.hideGuide();
-    } else if (e.button == 1) {
-        world.scaleReset();
-    } else if (e.button == 2) {
-        // right click
+    
+    if (!ui.shouldCapture(mouse.x, mouse.y) && mouse.down) {
+        mouse.down = false;
+        if (e.button == 0) {
+            world.setGuideEnd(mouse.x, mouse.y);
+            world.newPointGuide();
+            world.hideGuide();
+        } else if (e.button == 1) {
+            world.scaleReset();
+        } else if (e.button == 2) {
+            // right click
+        }
     }
+    
+    ui.event("mouseup", e);
 }
 
 function mousemove(e) {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
 
-    if (key[32]) {
-        world.cameraMove(e.movementX, e.movementY);
+    if (ui.shouldCapture(mouse.x, mouse.y)) {
+        ui.event("mousemove", e);
+        if (key[32]) {
+            world.cameraMove(e.movementX, e.movementY);
+        }
+    } else {
+        if (key[32]) {
+            world.cameraMove(e.movementX, e.movementY);
+        }
+        world.setGuideEnd(mouse.x, mouse.y);
     }
-    world.setGuideEnd(mouse.x, mouse.y);
 }
 
 function mouseout(e) {
     mouse.inside = false;
+
+    ui.event("mouseout", e);
     if (key[32]) {
         C.requestPointerLock();
     }
@@ -94,16 +114,22 @@ function keydown(e) {
         focused = true;
         return;
     }
-    if (e.keyCode == 48 || e.keyCode == 96) {
-        world.scaleReset();
-    }
-    if (e.keyCode == 32) {
-        if (!mouse.inside) {
-            C.requestPointerLock();
+
+    if (ui.shouldCapture(mouse.x, mouse.y)) {
+        ui.event("keydown", e);
+    } else {
+        if (e.keyCode == 48 || e.keyCode == 96) {
+            world.scaleReset();
         }
-        C.style.cursor = "move";
+        if (e.keyCode == 32) {
+            if (!mouse.inside) {
+                C.requestPointerLock();
+            }
+            C.style.cursor = "move";
+        }
+        key[e.keyCode] = true;
     }
-    key[e.keyCode] = true;
+
 }
 
 function keyup(e) {
@@ -111,21 +137,31 @@ function keyup(e) {
         focused = true;
         return;
     }
-    if (e.keyCode == 32) {
-        if (document.pointerLockElement) {
-            document.exitPointerLock();
+    if (ui.shouldCapture(mouse.x, mouse.y)) {
+        ui.event("keyup", e);
+    } else {
+        if (e.keyCode == 32) {
+            if (document.pointerLockElement) {
+                document.exitPointerLock();
+            }
+            C.style.cursor = "default";
         }
-        C.style.cursor = "default";
     }
+
     key[e.keyCode] = false;
 }
 
 function wheel(e) {
     e.preventDefault();
-    if (e.deltaY < 0) {
-        world.scale(true, mouse.x, mouse.y);
+
+    if (ui.shouldCapture(mouse.x, mouse.y)) {
+        ui.event("wheel", e);
     } else {
-        world.scale(false, mouse.x, mouse.y);
+        if (e.deltaY < 0) {
+            world.scale(true, mouse.x, mouse.y);
+        } else {
+            world.scale(false, mouse.x, mouse.y);
+        }
     }
 }
 

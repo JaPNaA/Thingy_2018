@@ -24,6 +24,19 @@ function getGravPow(x, y) {
     return 1 / (d * d);
 }
 
+function isInsideRect(cx, cy, x, y, w, h) {
+    return (
+        cx > x &&
+        cx < x + w &&
+        cy > y &&
+        cy < y + h
+    );
+}
+
+function isInsideCircle(cx, cy, x, y, r) {
+    return (getDist(cx - x, cy - y) < r);
+}
+
 const EASING = {
     // no easing, no acceleration
     linear: function (t) {

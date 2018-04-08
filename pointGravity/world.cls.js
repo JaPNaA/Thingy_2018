@@ -37,7 +37,6 @@ function World() {
         }
     };
 
-    this.devm = true;
     this.fps = 0;
 
     this.then = performance.now();
@@ -95,17 +94,16 @@ World.prototype.draw = function (X) {
     X.resetTransform();
 
     // static
-    if (this.devm) {
-        X.fillStyle = "#FF0000";
-        X.font = "bold " + (16 * (window.devicePixelRatio || 1)) + "px Consolas";
-        X.fillText([
-            "fps: " + Math.round(this.fps),
-            "x: " + Math.floor(this.camera.x),
-            "y: " + Math.floor(this.camera.y),
-            "scale: " + this.camera.scale.toPrecision(3),
-            "obslen: " + this.obs.length
-        ].join(', '), 8, X.canvas.height - 8);
-    }
+    X.fillStyle = "#FF0000";
+    X.font = "bold " + (16 * (window.devicePixelRatio || 1)) + "px Consolas";
+    X.fillText([
+        "fps: " + Math.round(this.fps),
+        "x: " + Math.floor(this.camera.x),
+        "y: " + Math.floor(this.camera.y),
+        "scale: " + this.camera.scale.toPrecision(3),
+        "obslen: " + this.obs.length
+    ].join(', '), 8, X.canvas.height - 8);
+    
 };
 
 World.prototype.cameraMove = function (x, y) {
