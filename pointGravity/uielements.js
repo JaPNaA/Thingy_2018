@@ -15,6 +15,7 @@ UiText.prototype.draw = function (X) {
 
 UiText.prototype.event = function () {};
 
+//* add 'reset' button
 
 function UiSlider(x, y, w, h, c) {
     this.x = x;
@@ -181,7 +182,7 @@ UiColorPicker.prototype.mousedown = function(e) {
 };
 
 UiColorPicker.prototype.mouseup = function(e) {
-    if (this.active) {
+    if (this.active && this.hover) {
         this.activate();
     }
     this.active = false;

@@ -66,7 +66,7 @@ Ui.prototype.draw = function (X) {
 
 Ui.prototype.setup = function () {
     this.children.push(new UiText(
-        "Menu",
+        "Point",
         "Consolas", 32, "#000000",
         48, 64));
 
@@ -110,6 +110,28 @@ Ui.prototype.setup = function () {
         a.value = world.default.point.color;
         this.children.push(a , b, c);
     }
+
+    this.children.push(new UiText(
+        "World",
+        "Consolas", 32, "#000000",
+        48, 414));
+    
+    {
+        let a = new UiSlider(48, 466, 256, 24, "#FF0000"),
+            b = new UiText(world.speed, "Arial", 16, "#888888", 52, 504),
+            c = new UiText("Speed", "Consolas", 24, "#222222", 48, 454);
+
+        a.addEventListener("change", function () {
+            let v = 10 * Math.log(a.value + 1);
+            b.text = v.toPrecision(5);
+            world.speed = v;
+        });
+        a.value = Math.exp(world.speed / 10) - 1;
+        this.children.push(a, b, c);
+    }
+    //* world -> add air resistance
+    //* graphics -> add trailStrength, transSpeed, gridSize, gridColor
+    //* controls -> scale step
 };
 
 Ui.prototype.drawContent = function (X) {
