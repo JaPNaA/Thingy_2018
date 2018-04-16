@@ -336,6 +336,52 @@ class PersistentData {
     }
 }
 
+class BgBlock {
+    constructor(p, ofs) {
+        this.parent = p;
+
+        let mz = this.parent.obs.length;
+        this.z = Math.floor(Math.random() * mz);
+        this.zp = this.z / mz;
+        this.sm = this.zp * 0.5 + 0.3;
+
+        this.width = 48 * this.sm;
+        this.height = 48 * this.sm;
+        this.value = this.parent.parent.data.difficulty * Block.colChange + Math.random() * Block.colChange;
+
+        while(Math.random() < 0.1) {
+            this.value *= 2;
+        }
+
+        this.x = Math.random() * (this.parent.parent.width + this.width) - this.width;
+        this.y = -this.height - ofs * 48;
+
+        this.vy = Block.vy * this.sm;
+
+        this.light = this.sm * 25 + 15;
+
+        this.rem = false;
+
+        p.obs[this.z].push(this);
+    }
+    tick(tt) {
+        this.y += this.vy * this.parent.parent.data.speed * tt;
+
+        if (this.y > this.parent.parent.height) {
+            this.rem = true;
+        }
+    }
+    draw(X) {
+        X.fillStyle = `hsl(${this.value}, 50%, ${this.light}%)`;
+        X.fillRect(this.x, this.y, this.width, this.height);
+    }
+    remove() {
+        if (this.rem) {
+            this.parent.obs[this.z].splice(this.parent.obs[this.z].indexOf(this), 1);
+        }
+    }
+}
+
 class Background extends Ob {
     constructor(g) {
         super(g);
@@ -344,10 +390,38 @@ class Background extends Ob {
 
         this.layer = 0;
         this.parent.obs[this.layer].push(this);
+
+        this.obs = [
+            [],
+            [],
+            [],
+            [],
+            []
+        ];
     }
+
+    eachObs(e) {
+        for (let i of this.obs) {
+            for (let j of i) {
+                e(j);
+            }
+        }
+    }
+
+    tick(tt) {
+        this.eachObs(e => e.tick(tt));
+    }
+
+    newBlock(ofs) {
+        new BgBlock(this, ofs || 0);
+    }
+
     draw() {
         this.parent.X.fillStyle = this.bgcolor;
         this.parent.X.fillRect(0, 0, this.parent.width, this.parent.height);
+
+        this.eachObs(e => e.draw(this.parent.X));
+        this.eachObs(e => e.remove());
     }
 }
 
@@ -428,12 +502,15 @@ class Block extends Thing {
     static get lanes() {
         return 7;
     }
+    static get colChange() {
+        return 9.101441186718159;
+    }
 
     get color() {
-        return `hsl(${(this.lvalue - 1) * 9.101441186718159}, 100%, 50%)`;
+        return `hsl(${(this.lvalue - 1) * Block.colChange}, 100%, 50%)`;
     }
     get cColor() {
-        return `hsl(${(this.lvalue - 1) * 9.101441186718159 + 180}, 100%, 50%)`;
+        return `hsl(${(this.lvalue - 1) * Block.colChange + 180}, 100%, 50%)`;
     }
 
     get speed() {
@@ -850,7 +927,7 @@ class Player extends Thing {
         return this._lives;
     }
     set lives(e) {
-        if (this.powUp.invincibility > 0) return;
+        if (this.powUp.invincibility > 0 || !this.parent.data.playerAlive) return;
         let L = e < this._lives;
         if (L) {
             new Effects(this.parent, this.parent.sprsht.baseexp.e, 0, this.parent.height - this.baseHeight, this.parent.width, this.baseHeight);
@@ -2595,7 +2672,7 @@ class GameScreen extends Screen {
         }
 
         this.data = new Data(this, this.sim);
-        new Background(this);
+        this.background = new Background(this);
 
         if (this.sim) {
             this.player = {
@@ -2665,6 +2742,9 @@ class GameScreen extends Screen {
 
         while (this.data.cooldown.block.e > 0) {
             new Block(this, randInt(Block.lanes), this.data.gridOffset);
+            for (let i = 0; i < 5; i++) {
+                this.background.newBlock(i);
+            }
             this.data.cooldown.block.e--;
         }
         while (this.data.cooldown.blockUp.e > 0) {
@@ -2798,4 +2878,4 @@ class P {
     }
 }
 
-new P();
+const p = new P(); //* SEAL
