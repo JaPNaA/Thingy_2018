@@ -1,6 +1,5 @@
 /*
 TODO:
-    - Difficulty selector
     - Min-width: 544
 */
 
@@ -134,6 +133,65 @@ class Thing {
 }
 
 /**
+ * Letter class, visuals
+ */
+class Letter extends Thing {
+    constructor(game, x, y, letter) {
+        super(game, x, y, 32, 32);
+
+        this.letter = letter;
+
+        this.freeFall = false;
+        this.active = false;
+        this.destroyed = false;
+
+        this.tx = x;
+        this.ty = y;
+        this.opacity = 1;
+    }
+
+    draw() {
+        const X = this.game.X;
+        
+        X.save();
+        X.globalAlpha = this.opacity;
+        X.font = "36px monospace";
+        X.fillStyle = this.active ? "#ffffff" : "#000000";
+        X.textBaseline = "middle";
+        X.textAlign = "center";
+        X.fillText(this.letter, this.x, this.y);
+        X.restore();
+    }
+
+    drop() {
+        this.freeFall = true;
+        this.active = false;
+        this.lastX = this.x;
+        this.lastY = this.y + -1 * this.lastDeltaTime;
+    }
+
+    tick(dt) {
+        this.lastDeltaTime = dt;
+
+        if (this.freeFall) {
+            this.physics(dt);
+        } else {
+            if (this.game.started) {
+                this.x += (this.tx - this.x) / (20 / dt);
+                this.y += (this.ty - this.y) / (20 / dt);
+            } else {
+                this.x = this.tx;
+                this.y = this.ty;
+            }
+        }
+    }
+
+    remove() {
+        return this.destroyed || this.freeFall && this.y > this.game.scaledHeight;
+    }
+}
+
+/**
  * Wall class, obstacle
  */
 class Wall extends Thing {
@@ -143,13 +201,13 @@ class Wall extends Thing {
      * @param {Number} x position
      */
     constructor(game, x) {
-        super(game, x, 0, 108, game.height);
+        super(game, x, 0, 108, game.scaledHeight);
 
         this.playerInside = false;
         this.lastPlayerInside = false;
 
         this.gapHeight = 316;
-        this.gapY = Math.random() * (game.height - this.gapHeight);
+        this.gapY = Math.random() * (game.scaledHeight - this.gapHeight);
     }
 
     tick(dt) {
@@ -176,7 +234,7 @@ class Wall extends Thing {
             this.x, 
             this.y + this.gapY + this.gapHeight, 
             this.width, 
-            this.game.height - (this.y + this.gapY + this.gapHeight)
+            this.game.scaledHeight - (this.y + this.gapY + this.gapHeight)
         );
     }
 }
@@ -208,9 +266,11 @@ class Player extends Thing {
             break;
         }
         this.possibility = this.possibleKeys.length;
+        /** @type {Letter} */
         this.key = null;
 
         this.bufferDisabled = this.bufferDisabled || false;
+        /** @type {Letter[]} */
         this.keybuffer = [];
         this.bufferLength = 10;
         
@@ -218,14 +278,22 @@ class Player extends Thing {
     }
 
     randkey() {
-        return this.possibleKeys[Math.floor(Math.random() * this.possibility)];
+        return new Letter(this.game, this.x, this.y, this.possibleKeys[Math.floor(Math.random() * this.possibility)]);
     }
 
     newKey() {
-        while (this.keybuffer.length <= this.bufferLength) {
-            this.keybuffer.push(this.randkey());
+        if (this.key) {
+            this.key.drop();
         }
-        this.key = this.keybuffer.shift();
+
+        if (this.bufferDisabled) {
+            this.key = this.randkey();
+        } else {
+            while (this.keybuffer.length <= this.bufferLength) {
+                this.keybuffer.push(this.randkey());
+            }
+            this.key = this.keybuffer.shift();
+        }
     }
 
     setup() {
@@ -253,18 +321,18 @@ class Player extends Thing {
         X.save();
 
         // draw key
-        X.font = "36px monospace";
-        X.fillStyle = "#ffffff";
-        X.textBaseline = "middle";
-        X.textAlign = "center";
-        X.fillText(this.key, this.x + halfWidth, this.y + halfHeight);
+        this.key.tx = this.x + halfWidth;
+        this.key.ty = this.y + halfHeight;
+        this.key.active = true;
 
         if (!this.bufferDisabled) {
             // draw key buffer
             X.fillStyle = "#000000";
             for (let i = 0; i < this.bufferLength; i++) {
-                X.globalAlpha = 1 - i * (1 / this.bufferLength);
-                X.fillText(this.keybuffer[i], this.x + this.width * 1.5 + i * 32, this.y + halfHeight);
+                const key = this.keybuffer[i];
+                key.tx = this.x + this.width * 1.5 + i * 32;
+                key.ty = this.y + halfHeight;
+                key.opacity = 1 - i * (1 / this.bufferLength);
             }
         }
 
@@ -304,6 +372,16 @@ class Player extends Thing {
     }
 
     /**
+     * removes all children letters
+     */
+    removeChildren() {
+        for (const key of this.keybuffer) {
+            key.destroyed = true;
+        }
+        this.key.destroyed = true;
+    }
+
+    /**
      * moves player ahead in time
      * @param {Number} dt deltaTime
      */
@@ -326,7 +404,7 @@ class Player extends Thing {
 
         switch (type) {
         case "keydown":
-            if (e.key === this.key) {
+            if (e.key === this.key.letter) {
                 if (!this.game.started) {
                     this.game.start();
                     this.vy += -1.3 * 8;
@@ -440,11 +518,13 @@ class StartDisplay extends Thing {
             if (e.keyCode === 38) {
                 if (this.difficultyNameMap[this.game.difficulty + 1]) {
                     this.game.difficulty++;
+                    this.game.parent.difficulty = this.game.difficulty;
                     this.game.resetPlayer();
                 }
             } else if (e.keyCode === 40) {
                 if (this.difficultyNameMap[this.game.difficulty - 1]) {
                     this.game.difficulty--;
+                    this.game.parent.difficulty = this.game.difficulty;
                     this.game.resetPlayer();
                 }
             }
@@ -613,6 +693,13 @@ class DeathDisplay extends Thing {
             }
         }
 
+        switch(type) {
+        case "keydown":
+            if (e.keyCode === 32 || e.keyCode === 82 || e.keyCode === 13) {
+                this.game.restart();
+            }
+            break;
+        }
     }
 
     cursor(x, y) {
@@ -693,6 +780,9 @@ class Game {
         this.cooldown = {
             Wall: new CooldownItem(3000, 0, 
                 () => new Wall(this, this.scaledWidth)
+            ),
+            speedUp: new CooldownItem(9000, 6000, 
+                () => this.speed += 0.01
             )
         };
         /** @type {String[]} */
@@ -752,6 +842,7 @@ class Game {
      */
     resetPlayer() {
         this.things.splice(this.things.indexOf(this.player), 1);
+        this.player.removeChildren();
         this.player = new Player(this);
     }
 
@@ -900,4 +991,4 @@ class Perm {
     }
 }
 
-new Perm();
+const p = new Perm();
