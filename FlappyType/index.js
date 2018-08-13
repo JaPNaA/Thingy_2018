@@ -1,8 +1,3 @@
-/*
-TODO:
-    - Min-width: 544
-*/
-
 /**
  * Thing abstract class
  */
@@ -254,14 +249,28 @@ class Player extends Thing {
 
         this.dead = false;
 
+        // switch (game.difficulty) {
+        // case 0: // default
+        //     this.possibleKeys = "abcdefghijklmnopqrstuvwxyz";
+        //     break;
+        // case 2: // not impossible
+        //     this.bufferDisabled = true;
+        //     /* fallthrough */
+        // case 1: // hard
+        //     this.possibleKeys = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-=!@#$%^&*()_+";
+        //     break;
+        // }
         switch (game.difficulty) {
-        case 0: // default
+        case 0: // easy
+            this.game.startSpeed = 0.5;
+            /** fallthrough */
+        case 1: // default
             this.possibleKeys = "abcdefghijklmnopqrstuvwxyz";
             break;
-        case 2: // not impossible
+        case 3: // not impossible
             this.bufferDisabled = true;
-            /* fallthrough */
-        case 1: // hard
+            /** fallthrough */
+        case 2: // hard
             this.possibleKeys = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-=!@#$%^&*()_+";
             break;
         }
@@ -451,6 +460,7 @@ class StartDisplay extends Thing {
         this.readyRemove = false;
 
         this.difficultyNameMap = [
+            "easy",
             "normal",
             "hard",
             "not impossible"
@@ -753,19 +763,23 @@ class Game {
         // config
         // -----------------------------------------------------------------------------
         this.height = 1080;
+        this.minWidth = 780;
+
         this.gravity = 0.0015;
         this.drag = 0.99;
-        this.speed = 0;
-        this.difficulty = 0 || parent.difficulty; // 0: default, 1: hard, 2: not impossible
+        this.startSpeed = 1;
+        this.difficulty = 1 || parent.difficulty; // 0: default, 1: hard, 2: not impossible
 
         this.catchEvents = ["mousemove", "mousedown", "mouseup", "keydown"];
         this.eventHandlers = {
-            "mousemove": e => this.mousemove(e)
+            "mousemove": e => this.mousemove(e),
+            "resize": () => this.resize()
         };
 
         // states
         // -----------------------------------------------------------------------------
         this.score = 0;
+        this.speed = 0;
 
         this.scaledHeight = 1080;
         this.scaledWidth = 1920;
@@ -776,6 +790,7 @@ class Game {
         
         this.started = false;
         this.ended = false;
+        this.stop = false;
 
         this.cooldown = {
             Wall: new CooldownItem(3000, 0, 
@@ -811,7 +826,7 @@ class Game {
     
     start() {
         this.startDisplay.close();
-        this.speed = 1;
+        this.speed = this.startSpeed;
         this.started = true;
     }
 
@@ -832,6 +847,8 @@ class Game {
         for (const i of this.catchEvents) {
             removeEventListener(i, this.userEventHandler);
         }
+
+        this.stop = true;
 
         // create new game
         this.parent.restart();
@@ -935,16 +952,21 @@ class Game {
      * resize handler
      */
     resize() {
-        //* consider not firing when resize event goes off
+        if (this.started) return;
+
         this.canvas.width = innerWidth;
         this.canvas.height = innerHeight;
 
         let scale = this.canvas.height / this.height;
 
+        if (this.canvas.width / scale < this.minWidth) {
+            scale = this.canvas.width / this.minWidth;
+        }
+
         this.X.scale(scale, scale);
 
         this.scaledWidth = this.canvas.width / scale;
-        this.scaledHeight = this.height;
+        this.scaledHeight = this.canvas.height / scale;
         this.scale = scale;
     }
 
@@ -972,6 +994,7 @@ class Game {
      * Small loop to prevent memory leaks
      */
     reqanfl() {
+        if (this.stop) return;
         requestAnimationFrame(e => this.reqanf(e));
     }
 }
@@ -981,7 +1004,7 @@ class Game {
  */
 class Perm {
     constructor() {
-        this.difficulty = 0;
+        this.difficulty = 1;
 
         this.game = new Game(this);
     }
