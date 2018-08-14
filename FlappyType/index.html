@@ -22,6 +22,22 @@
 </head>
 <body>
     <canvas id="c"></canvas>
+    <script>
+        // preload images
+        const srcs = [
+            "img/player.png",
+            "img/player_dead.png"
+        ];
+
+        for (let src of srcs) {
+            let link = document.createElement("link");
+            link.rel = "preload";
+            link.href = src;
+            link.as = "image";
+            link.type = "image/png";
+            document.head.appendChild(link);
+        }
+    </script>
     <script src="utils.js"></script>
     <script src="index.js"></script>
 </body>

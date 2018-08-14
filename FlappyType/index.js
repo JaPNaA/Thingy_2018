@@ -249,17 +249,6 @@ class Player extends Thing {
 
         this.dead = false;
 
-        // switch (game.difficulty) {
-        // case 0: // default
-        //     this.possibleKeys = "abcdefghijklmnopqrstuvwxyz";
-        //     break;
-        // case 2: // not impossible
-        //     this.bufferDisabled = true;
-        //     /* fallthrough */
-        // case 1: // hard
-        //     this.possibleKeys = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-=!@#$%^&*()_+";
-        //     break;
-        // }
         switch (game.difficulty) {
         case 0: // easy
             this.game.startSpeed = 0.5;
@@ -282,6 +271,11 @@ class Player extends Thing {
         /** @type {Letter[]} */
         this.keybuffer = [];
         this.bufferLength = 10;
+
+        this.texture = {
+            idle: loadImage("img/player.png"),
+            dead: loadImage("img/player_dead.png")
+        };
         
         this.setup();
     }
@@ -323,8 +317,27 @@ class Player extends Thing {
         X.translate(this.x + halfWidth, this.y + halfHeight);
         X.rotate(this.vy / 50);
 
-        X.fillStyle = this.dead ? "#ff0000" : "#0000ff";
-        X.fillRect(-halfWidth, -halfHeight, this.width, this.height);
+        if (this.dead) {
+            if (this.texture.dead.complete) {
+                X.drawImage(this.texture.dead,
+                    0, 0, this.texture.dead.width, this.texture.dead.height,
+                    -halfWidth, -halfHeight, this.width, this.height
+                );
+            } else {
+                X.fillStyle = "#ff0000";
+                X.fillRect(-halfWidth, -halfHeight, this.width, this.height);
+            }
+        } else {
+            if (this.texture.idle.complete) {
+                X.drawImage(this.texture.idle,
+                    0, 0, this.texture.idle.width, this.texture.idle.height,
+                    -halfWidth, -halfHeight, this.width, this.height
+                );
+            } else {
+                X.fillStyle = "#0000ff";
+                X.fillRect(-halfWidth, -halfHeight, this.width, this.height);
+            }
+        }
 
         X.restore();
         X.save();
@@ -363,6 +376,9 @@ class Player extends Thing {
                     this.y > wall.gapY &&
                     this.y + this.height < wall.gapY + wall.gapHeight
                 )) {
+                    if (!this.dead) {
+                        this.onDead();
+                    }
                     this.dead = true;
                 } else {
                     wall.playerInside = true;
@@ -371,6 +387,10 @@ class Player extends Thing {
                 wall.playerInside = false;
             }
         }
+    }
+
+    onDead() {
+        this.vy += -1 * this.lastDeltaTime;
     }
 
     /**
