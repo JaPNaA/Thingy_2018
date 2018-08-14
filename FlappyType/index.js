@@ -788,7 +788,7 @@ class Game {
         this.gravity = 0.0015;
         this.drag = 0.99;
         this.startSpeed = 1;
-        this.difficulty = 1 || parent.difficulty; // 0: default, 1: hard, 2: not impossible
+        this.difficulty = parent.difficulty; // 0: default, 1: hard, 2: not impossible
 
         this.catchEvents = ["mousemove", "mousedown", "mouseup", "keydown"];
         this.eventHandlers = {
