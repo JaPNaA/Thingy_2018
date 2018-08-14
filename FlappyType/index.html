@@ -27,14 +27,27 @@
         const srcs = [
             "img/player.png",
             "img/player_dead.png"
+            // "sound/key.mp3", // audio doesn't seem to work.
+            // "sound/point.mp3"
         ];
+        const exMap = {
+            "png": ["image", "png"],
+            "mp3": ["audio", "mpeg"]
+        };
+
+        function getMime(src) {
+            return exMap[src.slice(src.lastIndexOf(".") + 1)];
+        }
 
         for (let src of srcs) {
-            let link = document.createElement("link");
+            let link = document.createElement("link"),
+                mime = getMime(src);
             link.rel = "preload";
             link.href = src;
-            link.as = "image";
-            link.type = "image/png";
+            link.as = mime[0];
+            link.type = mime[0] + "/" + mime[1];
+
+            console.log(link);
             document.head.appendChild(link);
         }
     </script>

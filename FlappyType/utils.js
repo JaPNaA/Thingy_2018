@@ -7,3 +7,21 @@ function loadImage(src) {
     img.src = src;
     return img;
 }
+
+class Sound extends Audio {
+    constructor(src) {
+        super(src);
+    }
+
+    go() {
+        this.pause();
+        this.currentTime = 0;
+        this.play();
+    }
+}
+
+function loadSound(src, volume) {
+    var sound = new Sound(src);
+    sound.volume = volume;
+    return sound;
+}

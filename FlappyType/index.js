@@ -146,7 +146,7 @@ class Letter extends Thing {
         this.opacity = 1;
     }
 
-    draw() {
+    drawTop() {
         const X = this.game.X;
         
         X.save();
@@ -210,21 +210,37 @@ class Wall extends Thing {
         super(game, x, 0, 108, game.scaledHeight);
 
         this.playerInside = false;
-        this.lastPlayerInside = false;
+        // this.lastPlayerInside = false;
+        this.scored = false;
+
+        this.pointSound = loadSound("sound/point.mp3", 0.15);
 
         this.gapHeight = 316;
         this.gapY = Math.random() * (game.scaledHeight - this.gapHeight);
     }
 
+    score() {
+        if (this.scored) return;
+        this.game.score++;
+        this.pointSound.go();
+        this.scored = true;
+    }
+
     tick(dt) {
-        if (this.playerInside) {
-            this.lastPlayerInside = true;
-        }
-        if (this.lastPlayerInside && !this.playerInside) {
-            this.game.score++;
-            this.lastPlayerInside = false;
-        }
         this.x -= Wall.speed * dt;
+
+        if (this.playerInside) {
+            if (
+                this.game.player.x + this.game.player.width / 2 > 
+                this.x + this.width / 4
+            ) {
+                this.score();
+            }
+        }
+        // if (this.lastPlayerInside && !this.playerInside) {
+        //     this.score();
+        //     this.lastPlayerInside = false;
+        // }
     }
 
     remove() {
@@ -260,6 +276,8 @@ class Player extends Thing {
 
         this.dead = false;
 
+        this.game.startSpeed = 1;
+
         switch (game.difficulty) {
         case 0: // easy
             this.game.startSpeed = 0.5;
@@ -283,10 +301,13 @@ class Player extends Thing {
         this.keybuffer = [];
         this.bufferLength = 10;
 
+        this.power = 1.3;
+
         this.texture = {
             idle: loadImage("img/player.png"),
             dead: loadImage("img/player_dead.png")
         };
+        this.keySound = loadSound("sound/key.mp3", 0.125);
         
         this.setup();
     }
@@ -447,12 +468,13 @@ class Player extends Thing {
             if (e.key === this.key.letter) {
                 if (!this.game.started) {
                     this.game.start();
-                    this.vy += -1.3 * 8;
+                    this.vy -= this.power * 8;
                 } else {
-                    this.vy += -1.3 * this.lastDeltaTime;
+                    this.vy -= this.power * this.lastDeltaTime;
                 }
                 
                 this.newKey();
+                this.keySound.go();
             }
             break;
         }
@@ -530,6 +552,9 @@ class StartDisplay extends Thing {
         X.fillStyle = "#444444";
         X.font = "24px sans-serif";
         X.fillText("Use the up/down arrow keys to change difficulty", this.game.player.x, 720 + 24);
+        
+        X.fillStyle = "#ff0000";
+        X.fillText("Warning: game contains sounds", this.game.player.x, 720 + 64);
 
         X.fillStyle = "#000000";
         X.font = "32px sans-serif";
@@ -828,7 +853,7 @@ class Game {
                 () => new Wall(this, this.scaledWidth)
             ),
             speedUp: new CooldownItem(9000, 6000, 
-                () => this.speed += 0.01
+                () => this.speed += 0.05
             )
         };
         /** @type {String[]} */
