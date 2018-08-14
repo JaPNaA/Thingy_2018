@@ -136,8 +136,9 @@ class Letter extends Thing {
 
         this.letter = letter;
 
-        this.freeFall = false;
         this.active = false;
+        this.offmap = false;
+        this.freeFall = false;
         this.destroyed = false;
 
         this.tx = x;
@@ -151,7 +152,7 @@ class Letter extends Thing {
         X.save();
         X.globalAlpha = this.opacity;
         X.font = "36px monospace";
-        X.fillStyle = this.active ? "#ffffff" : "#000000";
+        X.fillStyle = this.active && !this.offmap ? "#ffffff" : "#000000";
         X.textBaseline = "middle";
         X.textAlign = "center";
         X.fillText(this.letter, this.x, this.y);
@@ -174,6 +175,16 @@ class Letter extends Thing {
             if (this.game.started) {
                 this.x += (this.tx - this.x) / (20 / dt);
                 this.y += (this.ty - this.y) / (20 / dt);
+
+                if (this.y > this.game.scaledHeight - this.height) {
+                    this.y = this.game.scaledHeight - this.height;
+                    this.offmap = true;
+                } else if (this.y < this.height) {
+                    this.y = this.height;
+                    this.offmap = true;
+                } else {
+                    this.offmap = false;
+                }
             } else {
                 this.x = this.tx;
                 this.y = this.ty;
