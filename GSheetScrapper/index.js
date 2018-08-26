@@ -58,6 +58,22 @@ function sanitize(str) {
     return docfrag;
 }
 
+function _prevDef(e) {
+    e.preventDefault();
+}
+
+function resize() {
+    for (let card of D.content.children) {
+        const meta = card.getElementsByClassName("card_meta")[0];
+        const text = card.getElementsByClassName("card_title_text")[0];
+        if (meta.clientWidth + text.offsetWidth > card.clientWidth - 32) {
+            card.classList.add("tall");
+        } else {
+            card.classList.remove("tall");
+        }
+    }
+}
+
 function closeStartScreen(e) {
     D.startScreen.classList.add("close");
 
@@ -69,11 +85,15 @@ function closeStartScreen(e) {
 function registerEventListeners() {
     addEventListener("wheel", closeStartScreen);
     addEventListener("click", closeStartScreen);
+    addEventListener("touchend", closeStartScreen);
+    addEventListener("touchmove", _prevDef, {passive: false});
 }
 
 function unregisterEventListeners() {
     removeEventListener("wheel", closeStartScreen);
     removeEventListener("click", closeStartScreen);
+    removeEventListener("touchend", closeStartScreen);
+    removeEventListener("touchmove", _prevDef);
 }
 
 function startScreenAnimation() {
@@ -220,9 +240,13 @@ function createCard(timestamp, name, title, body, color, backgroundcolor, custom
     
     const $title = document.createElement("div");
     $title.classList.add("card_title");
-    $title.appendChild(document.createTextNode(title));
     card.appendChild($title);
     
+    const $titleText = document.createElement("span");
+    $titleText.classList.add("card_title_text");
+    $titleText.appendChild(document.createTextNode(title));
+    $title.appendChild($titleText);
+
     const $meta = document.createElement("div");
     $meta.classList.add("card_meta");
     $meta.innerText = "by " + (name || "anonymous") + ", at " + timestamp;
@@ -259,6 +283,8 @@ function loaded(sheet) {
             row[6]
         );
     }
+    resize();
+    addEventListener("resize", resize);
 }
 
 function failed(e, x) {

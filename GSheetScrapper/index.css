@@ -89,6 +89,15 @@ body {
     position: relative;
     background-color: #ffffff;
     margin: 16px;
+    border-radius: 2px;
+}
+
+.body .content .card.tall .card_title {
+    padding-bottom: 32px;
+}
+
+.body .content .card .card_title_text {
+    display: inline;
 }
 
 .body .content .card>div {
