@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "moduleResolution": "node",
+        "module": "commonjs",
+        "lib": [
+            "dom",
+            "esnext",
+            "esnext.asynciterable",
+            "webworker"
+        ],
+        "allowJs": true,
+        "checkJs": true,
+        "sourceMap": true,
+        "sourceRoot": "./scripts",
+        "outDir": "./lolThisIsNotATSProject-VSCodeJustWorksBetterWithATSConfig"
+    }
+}
